@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PredictionStudio() {
+function PredictionStudioContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const defaultModel = searchParams.get("model") || "efficientnet_b0_v1";
@@ -308,5 +308,13 @@ export default function PredictionStudio() {
 
       </div>
     </div>
+  );
+}
+
+export default function PredictionStudio() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-green-400">Loading Studio Interface...</div>}>
+      <PredictionStudioContent />
+    </Suspense>
   );
 }
