@@ -1,0 +1,40 @@
+[
+  {
+    "model_id": "efficientnet_b0_v1",
+    "name": "EfficientNet B0 Plant Disease",
+    "version": "1.0.0",
+    "status": "archived",
+    "description": "Corn and tomato leaf disease classification model trained from notebook baseline.",
+    "tags": [
+      "leaf-disease",
+      "corn",
+      "tomato",
+      "classification",
+      "efficientnet"
+    ],
+    "supported_plants": [
+      "corn",
+      "tomato"
+    ],
+    "supported_diseases": [
+      "cercospora leaf spot",
+      "common rust",
+      "northern leaf blight",
+      "bacterial spot",
+      "early blight",
+      "late blight",
+      "leaf mold",
+      "mosaic virus",
+      "septoria leaf spot",
+      "spider mites",
+      "target spot",
+      "yellow leaf curl virus"
+    ],
+    "pricing_tier": "free",
+    "benchmark_summary": {
+      "validation_accuracy": 0.9935,
+      "weighted_f1": 0.9934
+    },
+    "metadata_file": "model_efficientnet_b0_v1.json"
+  }
+]

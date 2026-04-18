@@ -1,0 +1,112 @@
+{
+  "model_id": "efficientnet_b0_v1",
+  "name": "EfficientNet B0 Plant Disease",
+  "version": "1.0.0",
+  "status": "active",
+  "description": "Primary seed model for Tiki Tice Omniverse. Detects corn and tomato leaf diseases from images.",
+  "owner": "Tiki Tice AI Team",
+  "created_at": "2026-04-17",
+  "artifact_path": "models/artifacts/best_efficientnet.pth",
+  "framework": "pytorch",
+  "runtime": "cpu_or_cuda",
+  "input_spec": {
+    "type": "image",
+    "mime_types": [
+      "image/jpeg",
+      "image/png"
+    ],
+    "image_size": 224
+  },
+  "output_spec": {
+    "type": "multiclass",
+    "num_classes": 14,
+    "top_k_supported": true
+  },
+  "preprocess": {
+    "image_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ]
+  },
+  "class_names": [
+    "Corn_Cercospora_Leaf_Spot",
+    "Corn_Common_Rust",
+    "Corn_Healthy",
+    "Corn_Northern_Leaf_Blight",
+    "Tomato_Bacterial_Spot",
+    "Tomato_Early_Blight",
+    "Tomato_Healthy",
+    "Tomato_Late_Blight",
+    "Tomato_Leaf_Mold",
+    "Tomato_Mosaic_Virus",
+    "Tomato_Septoria_Leaf_Spot",
+    "Tomato_Spider_Mites",
+    "Tomato_Target_Spot",
+    "Tomato_Yellow_Leaf_Curl_Virus"
+  ],
+  "class_to_idx": {
+    "Corn_Cercospora_Leaf_Spot": 0,
+    "Corn_Common_Rust": 1,
+    "Corn_Healthy": 2,
+    "Corn_Northern_Leaf_Blight": 3,
+    "Tomato_Bacterial_Spot": 4,
+    "Tomato_Early_Blight": 5,
+    "Tomato_Healthy": 6,
+    "Tomato_Late_Blight": 7,
+    "Tomato_Leaf_Mold": 8,
+    "Tomato_Mosaic_Virus": 9,
+    "Tomato_Septoria_Leaf_Spot": 10,
+    "Tomato_Spider_Mites": 11,
+    "Tomato_Target_Spot": 12,
+    "Tomato_Yellow_Leaf_Curl_Virus": 13
+  },
+  "supported_plants": [
+    "corn",
+    "tomato"
+  ],
+  "supported_diseases": [
+    "corn cercospora leaf spot",
+    "corn common rust",
+    "corn northern leaf blight",
+    "tomato bacterial spot",
+    "tomato early blight",
+    "tomato late blight",
+    "tomato leaf mold",
+    "tomato mosaic virus",
+    "tomato septoria leaf spot",
+    "tomato spider mites",
+    "tomato target spot",
+    "tomato yellow leaf curl virus"
+  ],
+  "tags": [
+    "leaf-disease",
+    "classification",
+    "corn",
+    "tomato",
+    "efficientnet"
+  ],
+  "benchmark_summary": {
+    "validation_accuracy": 0.9935,
+    "weighted_f1": 0.9934
+  },
+  "training_notes": "Trained using merged PlantVillage classes in classification-finalproject notebook.",
+  "limitations": [
+    "Only supports corn and tomato classes in v1.",
+    "Not validated on field-captured smartphone data outside training domain."
+  ],
+  "safety_notes": [
+    "This output is a decision-support signal, not a final agronomy diagnosis.",
+    "Use local expert verification before pesticide or treatment decisions."
+  ],
+  "pricing_tier": "free",
+  "quota_policy": {
+    "daily_requests": 200
+  }
+}

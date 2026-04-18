@@ -1,0 +1,17 @@
+[
+  {
+    "tier": "free",
+    "description": "Open baseline models for community testing.",
+    "daily_quota": 200
+  },
+  {
+    "tier": "pro",
+    "description": "Higher-accuracy and lower-latency models.",
+    "daily_quota": 5000
+  },
+  {
+    "tier": "enterprise",
+    "description": "Dedicated custom models and SLA support.",
+    "daily_quota": -1
+  }
+]

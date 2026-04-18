@@ -1,0 +1,38 @@
+[
+  {
+    "run_id": "baseline_notebook_v1",
+    "model_id": "efficientnet_b0_v1",
+    "dataset": "PlantVillage subset (corn+tomato)",
+    "validation_accuracy": 0.9935,
+    "weighted_f1": 0.9934,
+    "notes": "Imported from classification-finalproject notebook output."
+  },
+  {
+    "run_id": "run_bdbe6ccf83c0",
+    "model_id": "efficientnet_b0_v1",
+    "dataset": "qa",
+    "accuracy": 0.9844,
+    "precision_weighted": 0.9814,
+    "recall_weighted": 0.9824,
+    "f1_weighted": 0.9843,
+    "latency_ms_p50": 44.02,
+    "latency_ms_p95": 75.09,
+    "throughput_img_per_sec": 22.75,
+    "notes": "Synthetic benchmark sample for 8 inputs.",
+    "created_at": "2026-04-17T15:26:56.438558+00:00"
+  },
+  {
+    "run_id": "run_0d42a07215ee",
+    "model_id": "efficientnet_b0_v1",
+    "dataset": "synthetic",
+    "accuracy": 0.9935,
+    "precision_weighted": 0.9905,
+    "recall_weighted": 0.9915,
+    "f1_weighted": 0.9934,
+    "latency_ms_p50": 52.0,
+    "latency_ms_p95": 110.0,
+    "throughput_img_per_sec": 18.0,
+    "notes": "Synthetic benchmark baseline. Provide manifest_path for real evaluation.",
+    "created_at": "2026-04-17T15:32:21.332307+00:00"
+  }
+]
