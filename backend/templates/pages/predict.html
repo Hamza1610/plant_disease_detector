@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Predict | Tiki Tice Omniverse{% endblock %}
+{% block content %}
+<section class="page-head"><h1>Prediction Studio</h1><p>Upload leaf images and run high-confidence inference.</p></section>
+<section class="panel form-panel">
+  <form id="predictForm">
+    <label>User ID</label><input id="userInput" value="demo_user" />
+    <label>Model</label><select id="modelSelect"></select>
+    <label>Top K</label><input id="topkInput" type="number" min="1" max="10" value="3" />
+    <label>Upload Image</label><input id="imageInput" type="file" accept="image/png,image/jpeg" required />
+    <button class="btn primary" type="submit">Run Prediction</button>
+  </form>
+  <pre id="predictOutput">Prediction response will appear here.</pre>
+</section>
+{% endblock %}
+{% block scripts %}<script>window.PAGE_TYPE='predict';</script>{% endblock %}

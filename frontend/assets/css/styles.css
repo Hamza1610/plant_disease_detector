@@ -1,0 +1,124 @@
+:root {
+  --bg1: #0f172a;
+  --bg2: #1d4ed8;
+  --card: rgba(255, 255, 255, 0.1);
+  --text: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background: linear-gradient(130deg, var(--bg1), var(--bg2));
+}
+
+.hero {
+  padding: 2rem;
+  text-align: center;
+}
+
+.hero h1 {
+  margin-bottom: 0.3rem;
+}
+
+.chips {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.chips span {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  padding: 1rem 1.5rem 2rem;
+}
+
+.top-nav {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0.25rem 1rem 1rem;
+}
+
+.top-nav a {
+  text-decoration: none;
+  color: var(--text);
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.card {
+  backdrop-filter: blur(8px);
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.4rem;
+}
+
+input,
+select,
+button {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 0.65rem;
+  margin: 0.35rem 0;
+  background: rgba(15, 23, 42, 0.45);
+  color: var(--text);
+}
+
+button {
+  cursor: pointer;
+  background: #22c55e;
+  border: none;
+  font-weight: bold;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  margin: 0.5rem 0;
+  padding: 0.65rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+pre {
+  min-height: 180px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.7rem;
+  border-radius: 8px;
+}
