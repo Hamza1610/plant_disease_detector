@@ -1,0 +1,13 @@
+{
+  "dataset_name": "sample_leaf_manifest",
+  "entries": [
+    {
+      "image_path": "benchmarks/datasets/images/sample1.jpg",
+      "label": "Tomato_Healthy"
+    },
+    {
+      "image_path": "benchmarks/datasets/images/sample2.jpg",
+      "label": "Corn_Healthy"
+    }
+  ]
+}
