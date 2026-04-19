@@ -1,0 +1,61 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: omnivax-backend
+    restart: always
+    environment:
+      - VIRTUAL_HOST=${DOMAIN_NAME}.sslip.io
+      - VIRTUAL_PORT=8000
+      - LETSENCRYPT_HOST=${DOMAIN_NAME}.sslip.io
+      - LETSENCRYPT_EMAIL=${SSL_EMAIL}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=sqlite:////app/data/plant_disease.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - omnivax-network
+
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - certs:/etc/nginx/certs:ro
+    restart: always
+    networks:
+      - omnivax-network
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - certs:/etc/nginx/certs
+    environment:
+      - DEFAULT_EMAIL=${SSL_EMAIL}
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+    restart: always
+    networks:
+      - omnivax-network
+
+volumes:
+  vhost:
+  html:
+  certs:
+  data:
+
+networks:
+  omnivax-network:
+    driver: bridge

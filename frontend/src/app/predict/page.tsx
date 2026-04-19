@@ -31,7 +31,8 @@ function PredictionStudioContent() {
       router.push("/login?redirect=/predict");
       return;
     }
-    fetch("http://localhost:8000/models")
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${API_URL}/models`)
       .then(res => res.json())
       .then(data => setModels(data))
       .catch(err => console.error(err));
@@ -73,7 +74,8 @@ function PredictionStudioContent() {
                              formData.append("image", blob, `live_frame_${Date.now()}.jpg`);
                              formData.append("model_id", selectedModel);
                              const token = localStorage.getItem("token");
-                             fetch("http://localhost:8000/predict", {
+                             const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                             fetch(`${API_URL}/predict`, {
                                 method: "POST",
                                 headers: { "Authorization": `Bearer ${token}` },
                                 body: formData
@@ -136,7 +138,8 @@ function PredictionStudioContent() {
 
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:8000/predict", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const res = await fetch(`${API_URL}/predict`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`

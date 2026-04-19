@@ -18,7 +18,8 @@ export default function ModelsCatalog() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/models")
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${API_URL}/models`)
       .then((res) => res.json())
       .then((data) => {
         setModels(data);
