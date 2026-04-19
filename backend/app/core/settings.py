@@ -19,7 +19,11 @@ class Settings(BaseSettings):
     models_artifacts_dir: Path = workspace_root / "models" / "artifacts"
     benchmark_runs_dir: Path = workspace_root / "benchmarks" / "runs"
 
-    model_config = SettingsConfigDict(env_file=str(Path(__file__).resolve().parents[3] / ".env"), env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).resolve().parents[3] / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 settings = Settings()
