@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_ENDPOINTS } from "@/config/api";
 
 interface ChatMessage {
   role: 'user' | 'model';
