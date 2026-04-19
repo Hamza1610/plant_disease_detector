@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface ModelSummary {
   model_id: string;
@@ -18,8 +19,7 @@ export default function ModelsCatalog() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    fetch(`${API_URL}/models`)
+    fetch(API_ENDPOINTS.MODELS)
       .then((res) => res.json())
       .then((data) => {
         setModels(data);

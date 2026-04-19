@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function Login() {
   const router = useRouter();
@@ -20,8 +21,7 @@ export default function Login() {
       params.append("username", email);
       params.append("password", password);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params,

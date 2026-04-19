@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function JoinPilot() {
   const router = useRouter();
@@ -16,8 +17,7 @@ export default function JoinPilot() {
     setError("");
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_URL}/auth/register`, {
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -33,8 +33,7 @@ export default function JoinPilot() {
       loginParams.append("username", email);
       loginParams.append("password", password);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const loginRes = await fetch(`${API_URL}/auth/login`, {
+      const loginRes = await fetch(API_ENDPOINTS.LOGIN, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: loginParams,

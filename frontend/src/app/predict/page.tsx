@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AiChatModal from "@/components/AiChatModal";
+import { API_ENDPOINTS } from "@/config/api";
 
 function PredictionStudioContent() {
   const router = useRouter();
@@ -31,8 +32,7 @@ function PredictionStudioContent() {
       router.push("/login?redirect=/predict");
       return;
     }
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    fetch(`${API_URL}/models`)
+    fetch(API_ENDPOINTS.MODELS)
       .then(res => res.json())
       .then(data => setModels(data))
       .catch(err => console.error(err));
@@ -74,8 +74,7 @@ function PredictionStudioContent() {
                              formData.append("image", blob, `live_frame_${Date.now()}.jpg`);
                              formData.append("model_id", selectedModel);
                              const token = localStorage.getItem("token");
-                             const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                             fetch(`${API_URL}/predict`, {
+                             fetch(API_ENDPOINTS.PREDICT, {
                                 method: "POST",
                                 headers: { "Authorization": `Bearer ${token}` },
                                 body: formData
@@ -138,8 +137,7 @@ function PredictionStudioContent() {
 
       const token = localStorage.getItem("token");
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${API_URL}/predict`, {
+      const res = await fetch(API_ENDPOINTS.PREDICT, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
