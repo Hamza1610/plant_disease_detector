@@ -4,6 +4,10 @@ from datetime import datetime, timezone
 from app.db.database import Base
 
 import enum
+import uuid
+
+def generate_uuid():
+    return str(uuid.uuid4())
 
 class UserRole(str, enum.Enum):
     STANDARD = "standard"
@@ -13,7 +17,7 @@ class UserRole(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True, default=generate_uuid)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String, nullable=True) # Nullable for OAuth users
     role = Column(String, default=UserRole.STANDARD)
@@ -42,7 +46,7 @@ class PredictionLog(Base):
     __tablename__ = "predictions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id"))
     model_id = Column(String, ForeignKey("models.id"))
     image_filename = Column(String)
     predicted_class = Column(String)

@@ -9,7 +9,7 @@ class UserCreate(UserBase):
     password: str
 
 class UserResponse(UserBase):
-    id: int
+    id: str
     is_active: bool
     is_premium: bool
     role: str
