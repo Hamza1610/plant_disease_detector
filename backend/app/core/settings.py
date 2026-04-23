@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     GEMINI_API_KEY: str
 
+    # Supabase Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_JWT_SECRET: str = ""
+
     workspace_root: Path = Path(__file__).resolve().parents[3]
     models_metadata_dir: Path = workspace_root / "models" / "metadata"
     models_artifacts_dir: Path = workspace_root / "models" / "artifacts"

@@ -48,18 +48,54 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+    
+    payload = None
+    # 1. Try Supabase verification if configured
+    if settings.SUPABASE_JWT_SECRET:
+        try:
+            # Supabase tokens usually have 'authenticated' audience
+            payload = jwt.decode(
+                token, 
+                settings.SUPABASE_JWT_SECRET, 
+                algorithms=["HS256"], 
+                options={"verify_aud": False} 
+            )
+        except JWTError:
+            payload = None
+
+    # 2. Fallback to legacy verification
+    if not payload:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError:
             raise credentials_exception
-        token_data = user_schema.TokenData(email=email)
-    except JWTError:
+
+    # Supabase puts email in 'email', legacy puts it in 'sub'
+    email: str = payload.get("email") or payload.get("sub")
+    
+    if email is None:
         raise credentials_exception
-    user = db.query(models.User).filter(models.User.email == token_data.email).first()
+        
+    user = db.query(models.User).filter(models.User.email == email).first()
+    
+    # Auto-provision user if they authenticated via Supabase but aren't in our local DB yet
     if user is None:
-        raise credentials_exception
+        user = models.User(email=email, role=models.UserRole.STANDARD)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
     return user
+
+def require_role(roles: list[str]):
+    def role_checker(current_user: models.User = Depends(get_current_user)):
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Operation restricted to roles: {', '.join(roles)}"
+            )
+        return current_user
+    return role_checker
 
 @router.post("/register", response_model=user_schema.UserResponse)
 def register(user: user_schema.UserCreate, db: Session = Depends(get_db)):
