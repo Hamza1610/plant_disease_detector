@@ -10,10 +10,7 @@ from app.api.pages import router as pages_router
 from app.api.predict import router as predict_router
 from app.api.system import router as system_router
 from app.api.chat import router as chat_router
-from app.api.models import router as models_router
-from app.api.pages import router as pages_router
-from app.api.predict import router as predict_router
-from app.api.system import router as system_router
+from app.api.analytics import router as analytics_router
 from app.core.settings import settings
 from app.db.database import engine, Base, SessionLocal
 from app.db import models
@@ -60,5 +57,6 @@ app.include_router(predict_router)
 app.include_router(benchmarks_router)
 app.include_router(billing_router)
 app.include_router(chat_router)
+app.include_router(analytics_router)
 
 
