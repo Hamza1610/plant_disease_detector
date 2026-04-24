@@ -32,6 +32,7 @@ class ModelCatalog(Base):
     __tablename__ = "models"
 
     id = Column(String, primary_key=True, index=True)  # e.g., 'omni-leaf-blight'
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True)
     title = Column(String, index=True) # e.g., 'Omni Leaf Blight Spotter v1'
     description = Column(String)
     artifact_path = Column(String)

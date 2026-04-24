@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from "@/config/api";
 
 interface ChatMessage {
   role: 'user' | 'model';
-  parts: string[];
+  content: string;
 }
 
 interface AiChatModalProps {
@@ -34,7 +34,7 @@ export default function AiChatModal({ isOpen, onClose, predictionContext }: AiCh
     if (!text.trim()) return;
     
     // Optimistic UI insert
-    const userMsg: ChatMessage = { role: 'user', parts: [text] };
+    const userMsg: ChatMessage = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -43,7 +43,6 @@ export default function AiChatModal({ isOpen, onClose, predictionContext }: AiCh
       let contextStr = "";
       if (contextOverride || predictionContext) {
         const pred = contextOverride || predictionContext;
-        // Using optional chaining safely since it's dynamically populated
         if (pred?.top_prediction?.label) {
            contextStr = `The model predicted ${pred.top_prediction.label} with ${(pred.top_prediction.confidence * 100).toFixed(2)}% confidence.`;
         }
@@ -52,7 +51,7 @@ export default function AiChatModal({ isOpen, onClose, predictionContext }: AiCh
       const bodyPayload = {
         message: text,
         prediction_context: contextStr,
-        history: messages // Excludes the optimistic string we just appended locally above for consistency, it is appended natively in chat.py
+        history: messages 
       };
 
       const res = await fetch(API_ENDPOINTS.CHAT, {
@@ -67,13 +66,12 @@ export default function AiChatModal({ isOpen, onClose, predictionContext }: AiCh
          throw new Error(data.detail || "Server error from Gemini API.");
       }
       
-      // Append AI response
-      const aiMsg: ChatMessage = { role: 'model', parts: [data.reply] };
+      const aiMsg: ChatMessage = { role: 'model', content: data.reply };
       setMessages(prev => [...prev, aiMsg]);
       
     } catch (err: any) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'model', parts: [`⚠️ AI Engine Error: ${err.message}`] }]);
+      setMessages(prev => [...prev, { role: 'model', content: `⚠️ AI Engine Error: ${err.message}` }]);
     } finally {
       setLoading(false);
     }
@@ -104,7 +102,7 @@ export default function AiChatModal({ isOpen, onClose, predictionContext }: AiCh
           {messages.map((m, idx) => (
              <div key={idx} className={`max-w-[90%] sm:max-w-[80%] ${m.role === 'user' ? 'self-end' : 'self-start'}`}>
                 <div className={`p-4 rounded-2xl ${m.role === 'user' ? 'bg-cyan-500/20 text-cyan-50 border border-cyan-500/30 rounded-tr-sm' : 'bg-white/5 text-gray-300 border border-white/10 rounded-tl-sm'}`}>
-                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.parts[0]}</p>
+                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
                 </div>
                 <span className={`text-[10px] text-gray-500 mt-1.5 block px-1 uppercase tracking-wider font-semibold ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
                   {m.role === 'user' ? 'You' : 'AI Agronomist'}
