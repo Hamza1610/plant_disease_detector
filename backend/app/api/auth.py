@@ -42,6 +42,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+from supabase import create_client, Client
+
+# Initialize Supabase client for auth verification
+supabase_client: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_JWT_SECRET)
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -49,39 +54,48 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    payload = None
-    # 1. Try Supabase verification if configured
-    if settings.SUPABASE_JWT_SECRET:
+    try:
+        # Use the official Supabase client to verify the token and get user data
+        # This handles HS256, ES256, and other algorithms automatically
+        auth_response = supabase_client.auth.get_user(token)
+        sb_user = auth_response.user
+        
+        if not sb_user:
+            raise credentials_exception
+            
+        user_id = sb_user.id
+        email = sb_user.email
+        
+    except Exception as e:
+        print(f"Supabase Auth Verification Failed: {e}")
+        # Fallback to legacy verification (only if it's not a Supabase token)
         try:
-            # Supabase tokens usually have 'authenticated' audience
-            payload = jwt.decode(
-                token, 
-                settings.SUPABASE_JWT_SECRET, 
-                algorithms=["HS256"], 
-                options={"verify_aud": False} 
-            )
-        except JWTError:
-            payload = None
-
-    # 2. Fallback to legacy verification
-    if not payload:
-        try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        except JWTError:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            user_id = payload.get("sub")
+            email = payload.get("email") or payload.get("sub")
+        except JWTError as e_legacy:
+            print(f"Legacy Auth Verification Failed: {e_legacy}")
             raise credentials_exception
 
-    # Supabase puts email in 'email', legacy puts it in 'sub'
-    email: str = payload.get("email") or payload.get("sub")
-    
-    if email is None:
+    if not user_id:
         raise credentials_exception
         
-    user = db.query(models.User).filter(models.User.email == email).first()
+    # Try finding by ID first
+    user = db.query(models.User).filter(models.User.id == user_id).first()
     
-    # Auto-provision user if they authenticated via Supabase but aren't in our local DB yet
+    # Fallback to finding by email
+    if not user:
+        user = db.query(models.User).filter(models.User.email == email).first()
+    
+    # Auto-provision user if they authenticated but aren't in our local DB yet
     if user is None:
-        user = models.User(email=email, role=models.UserRole.STANDARD)
+        user = models.User(id=user_id, email=email, role=models.UserRole.STANDARD)
         db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user.id != user_id and email == user.email:
+        # Update legacy user ID to match Supabase UUID
+        user.id = user_id
         db.commit()
         db.refresh(user)
         

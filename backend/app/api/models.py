@@ -7,7 +7,32 @@ from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest
 from app.db.database import get_db
 from app.db import models
 
+from app.api.auth import require_role
+from app.db.models import UserRole
+
 router = APIRouter(prefix="/models", tags=["models"])
+
+@router.post("", response_model=ModelDetail)
+def register_model(
+    request: RegisterModelRequest, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    db_model = models.ModelCatalog(
+        id=request.model_id,
+        owner_id=current_user.id,
+        title=request.name,
+        description=request.description,
+        artifact_path=request.artifact_path,
+        input_spec=json.dumps(request.input_spec) if request.input_spec else "{}",
+        output_classes=json.dumps(request.class_names) if request.class_names else "[]",
+        tags=json.dumps(request.tags) if request.tags else "[]",
+        is_active=True
+    )
+    db.add(db_model)
+    db.commit()
+    db.refresh(db_model)
+    return _to_detail(db_model)
 
 def _to_summary(model: models.ModelCatalog) -> dict:
     return {

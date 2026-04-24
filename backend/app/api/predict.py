@@ -69,3 +69,21 @@ async def predict(
         "top_prediction": predictions[0],
         "predictions": predictions,
     }
+@router.get("/history", response_model=list[PredictionResponse | dict]) # Using dict for simple mapping
+def get_prediction_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    history = db.query(models.PredictionLog).filter(models.PredictionLog.user_id == current_user.id).order_by(models.PredictionLog.created_at.desc()).all()
+    
+    # Simple mapping to match the frontend expectations if needed
+    return [
+        {
+            "id": h.id,
+            "model_id": h.model_id,
+            "predicted_class": h.predicted_class,
+            "confidence": h.confidence,
+            "created_at": h.created_at.isoformat() if h.created_at else None,
+            "image_filename": h.image_filename
+        } for h in history
+    ]
