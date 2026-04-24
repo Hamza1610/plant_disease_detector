@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
-import google.generativeai as genai
+from fastapi import APIRouter, HTTPException
+from google import genai
+from google.genai import types
 from pydantic import BaseModel
-import os
 from typing import Optional, List
 from app.core.settings import settings
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 class ChatMessage(BaseModel):
     role: str
-    parts: List[str]
+    content: str # Updated from parts to match modern SDK style
 
 class ChatRequest(BaseModel):
     message: str
@@ -24,28 +24,31 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 async def chat_with_gemini(request: ChatRequest):
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        system_instruction = (
+            "You are an expert agronomist AI assistant for 'Plant Disease Omnivax'. "
+            "A farmer or user is asking for your help. Provide clear, actionable recommendations. "
+            "If the user has a specific prediction context, use it to give localized advice."
+        )
         
-        gemini_history = []
+        if request.prediction_context:
+            system_instruction += f"\nCurrent prediction context: {request.prediction_context}"
+
+        # Prepare history for the new SDK
+        chat_history = []
         if request.history:
             for h in request.history:
-                gemini_history.append({"role": h.role, "parts": h.parts})
-                
-        chat = model.start_chat(history=gemini_history)
-        
-        if not gemini_history:
-            system_prompt = (
-                "You are an expert agronomist AI assistant for 'Plant Disease Omnivax'. "
-                "A farmer or user is asking for your help. "
+                chat_history.append(types.Content(role=h.role, parts=[types.Part(text=h.content)]))
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=chat_history + [types.Content(role='user', parts=[types.Part(text=request.message)])],
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.7,
             )
-            if request.prediction_context:
-                system_prompt += f"\nCurrent prediction context: {request.prediction_context}\n"
-                
-            full_prompt = f"{system_prompt}\nUser Question: {request.message}\nProvide a clear, actionable recommendation."
-            response = chat.send_message(full_prompt)
-        else:
-            response = chat.send_message(request.message)
-            
+        )
+        
         return ChatResponse(reply=response.text)
     except Exception as e:
+        print(f"Chat Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

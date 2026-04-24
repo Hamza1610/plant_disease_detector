@@ -11,6 +11,6 @@ sqlalchemy
 pydantic[email]
 passlib[bcrypt]
 python-jose[cryptography]
-google-generativeai
+google-genai
 supabase
 psycopg2-binary
