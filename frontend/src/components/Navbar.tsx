@@ -30,6 +30,12 @@ export default function Navbar() {
               </Link>
             )}
 
+            {(user?.role === 'enterprise' || user?.role === 'developer') && (
+              <Link href="/enterprise" className={`px-2 py-1 rounded-md text-sm font-medium border border-blue-500/30 bg-blue-500/5 transition-colors ${pathname === '/enterprise' ? 'text-blue-400' : 'text-gray-300 hover:text-white'}`}>
+                Intelligence
+              </Link>
+            )}
+
             <Link href="/benchmarks" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors">Benchmarks</Link>
             <Link href="/pricing" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors hidden sm:block">Pricing</Link>
             
