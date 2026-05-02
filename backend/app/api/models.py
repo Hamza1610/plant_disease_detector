@@ -1,16 +1,51 @@
-from typing import Any
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, File, UploadFile, Form
 from sqlalchemy.orm import Session
 import json
-
+import shutil
+from pathlib import Path
+from app.core.settings import settings
 from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest
 from app.db.database import get_db
 from app.db import models
-
 from app.api.auth import require_role
 from app.db.models import UserRole
 
 router = APIRouter(prefix="/models", tags=["models"])
+
+@router.post("/upload", response_model=ModelDetail)
+async def upload_model(
+    file: UploadFile = File(...),
+    model_id: str = Form(...),
+    name: str = Form(...),
+    description: str = Form(""),
+    class_names: str = Form("[]"), # JSON string
+    tags: str = Form("[]"),        # JSON string
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    # Ensure directory exists
+    artifacts_dir = settings.workspace_root / "backend" / "static" / "models" / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_path = artifacts_dir / file.filename
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    db_model = models.ModelCatalog(
+        id=model_id,
+        owner_id=current_user.id,
+        title=name,
+        description=description,
+        artifact_path=str(file_path),
+        input_spec=json.dumps({"input_shape": [None, 224, 224, 3]}),
+        output_classes=class_names,
+        tags=tags,
+        is_active=True
+    )
+    db.add(db_model)
+    db.commit()
+    db.refresh(db_model)
+    return _to_detail(db_model)
 
 @router.post("", response_model=ModelDetail)
 def register_model(

@@ -1,0 +1,7 @@
+typer[all]
+rich
+httpx
+supabase
+pydantic
+pydantic-settings
+python-dotenv
