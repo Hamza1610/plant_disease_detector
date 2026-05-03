@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
-from app.db.database import Base
+from app.infrastructure.database import Base
 
 import enum
 import uuid
@@ -28,19 +28,27 @@ class User(Base):
     predictions = relationship("PredictionLog", back_populates="user")
 
 
-class ModelCatalog(Base):
+class Model(Base):
     __tablename__ = "models"
 
-    id = Column(String, primary_key=True, index=True)  # e.g., 'omni-leaf-blight'
+    id = Column(String, primary_key=True, index=True)  # e.g., 'efficientnet_b0_v1'
     owner_id = Column(String, ForeignKey("users.id"), nullable=True)
-    title = Column(String, index=True) # e.g., 'Omni Leaf Blight Spotter v1'
+    name = Column(String, index=True) # e.g., 'EfficientNet B0 Plant Disease'
+    version = Column(String)
+    status = Column(String, default="active") # active, archived, etc
     description = Column(String)
     artifact_path = Column(String)
-    input_spec = Column(String)  # image/jpeg etc
+    framework = Column(String) # pytorch, onnx, etc
+    input_spec = Column(String)  # JSON encoded spec
     output_classes = Column(String)  # JSON encoded list of classes
-    is_active = Column(Boolean, default=True)
+    supported_plants = Column(String) # JSON encoded list
+    supported_diseases = Column(String) # JSON encoded list
     tags = Column(String) # JSON encoded list of tags
+    pricing_tier = Column(String, default="free")
+    benchmark_summary = Column(String) # JSON encoded summary
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    metadata_json = Column(String) # Catch-all for extra data
 
 
 class PredictionLog(Base):
@@ -73,3 +81,26 @@ class ApiKey(Base):
     expires_at = Column(DateTime, nullable=True)
 
     user = relationship("User", backref="api_keys")
+
+class PricingTier(Base):
+    __tablename__ = "pricing_tiers"
+
+    tier = Column(String, primary_key=True) # free, pro, enterprise
+    daily_quota = Column(Integer, default=200) # -1 for unlimited
+    features = Column(String) # JSON encoded list
+
+class Benchmark(Base):
+    __tablename__ = "benchmarks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    model_id = Column(String, ForeignKey("models.id"))
+    dataset = Column(String)
+    accuracy = Column(Float)
+    precision_weighted = Column(Float)
+    recall_weighted = Column(Float)
+    f1_weighted = Column(Float)
+    latency_ms_p50 = Column(Float)
+    latency_ms_p95 = Column(Float)
+    throughput_img_per_sec = Column(Float)
+    notes = Column(String)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
