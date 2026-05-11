@@ -7,13 +7,20 @@ export interface UserProfile {
   role: 'standard' | 'developer' | 'enterprise';
   is_active: boolean;
   is_premium: boolean;
+  onboarding_completed: boolean;
+  profile_metadata?: string;
 }
 
 export function useUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (token: string) => {
+  const fetchProfile = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/me`, {
         headers: {
@@ -31,12 +38,18 @@ export function useUser() {
     }
   };
 
+  const logout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('token');
+    setUser(null);
+  };
+
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         localStorage.setItem('token', session.access_token);
-        await fetchProfile(session.access_token);
+        await fetchProfile();
       } else {
         setLoading(false);
       }
@@ -47,7 +60,7 @@ export function useUser() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         localStorage.setItem('token', session.access_token);
-        await fetchProfile(session.access_token);
+        await fetchProfile();
       } else {
         setUser(null);
         localStorage.removeItem('token');
@@ -60,5 +73,5 @@ export function useUser() {
     };
   }, []);
 
-  return { user, loading, logout: () => supabase.auth.signOut() };
+  return { user, loading, logout, refreshUser: fetchProfile };
 }
