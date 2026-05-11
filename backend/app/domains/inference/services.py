@@ -71,13 +71,20 @@ class InferenceService:
             raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
 
         # 5. Log to DB
+        # Mocking geo lookup for demo purposes
+        import random
+        regions = ["Sub-Saharan Africa", "Southeast Asia", "Latin America", "North America", "Europe"]
+        countries = ["Nigeria", "Kenya", "Ghana", "Vietnam", "Brazil", "India", "USA", "France"]
+        
         pred_log = models.PredictionLog(
             user_id=user.id,
             model_id=model_id,
             image_filename=image.filename,
             predicted_class=predictions[0]["label"],
             confidence=predictions[0]["confidence"],
-            full_result_json=json.dumps(predictions)
+            full_result_json=json.dumps(predictions),
+            region=random.choice(regions),
+            country=random.choice(countries)
         )
         self.db.add(pred_log)
         

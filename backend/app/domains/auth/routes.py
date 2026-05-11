@@ -25,7 +25,11 @@ def register(user: user_schema.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user.password)
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
+    db_user = models.User(
+        email=user.email, 
+        hashed_password=hashed_password,
+        role=user.role or models.UserRole.STANDARD
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -65,6 +69,9 @@ def create_api_key(name: str, db: Session = Depends(get_db), current_user: model
     db.add(db_key)
     db.commit()
     
+    from app.domains.system.audit import AuditService
+    AuditService(db).log("key_created", user_id=current_user.id, resource_id=db_key.id, metadata={"name": name})
+    
     return {"name": name, "api_key": plain_key, "message": "Save this key! You will not be able to see it again."}
 
 @router.get("/api-keys", response_model=list[dict])
@@ -86,6 +93,10 @@ def revoke_api_key(key_id: str, db: Session = Depends(get_db), current_user: mod
     db_key = db.query(models.ApiKey).filter(models.ApiKey.id == key_id, models.ApiKey.user_id == current_user.id).first()
     if not db_key:
         raise HTTPException(status_code=404, detail="Key not found")
+    
+    from app.domains.system.audit import AuditService
+    AuditService(db).log("key_revoked", user_id=current_user.id, resource_id=key_id, metadata={"name": db_key.name})
+    
     db.delete(db_key)
     db.commit()
     return {"message": "Key revoked successfully"}
@@ -97,4 +108,23 @@ def toggle_api_key(key_id: str, db: Session = Depends(get_db), current_user: mod
         raise HTTPException(status_code=404, detail="Key not found")
     db_key.is_active = not db_key.is_active
     db.commit()
+    
+    from app.domains.system.audit import AuditService
+    AuditService(db).log("key_toggled", user_id=current_user.id, resource_id=key_id, metadata={"active": db_key.is_active})
+    
     return {"message": f"Key {'activated' if db_key.is_active else 'deactivated'} successfully", "is_active": db_key.is_active}
+
+@router.post("/onboarding")
+def complete_onboarding(
+    data: dict, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    current_user.onboarding_completed = True
+    current_user.profile_metadata = json.dumps(data)
+    db.commit()
+    
+    from app.domains.system.audit import AuditService
+    AuditService(db).log("onboarding_completed", user_id=current_user.id, metadata=data)
+    
+    return {"status": "success", "message": "Onboarding profile updated"}

@@ -11,6 +11,7 @@ class CliConfig(BaseModel):
     supabase_url: Optional[str] = None
     supabase_key: Optional[str] = None
     access_token: Optional[str] = None
+    api_key: Optional[str] = None
     api_url: str = "http://localhost:8000"
 
 def save_config(config: CliConfig):
@@ -32,3 +33,22 @@ def load_config() -> CliConfig:
 def clear_config():
     if CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
+
+def get_auth_headers(config: CliConfig) -> dict:
+    """
+    Priority:
+    1. OMNIVAX_API_KEY environment variable
+    2. config.api_key (stored API Key)
+    3. config.access_token (Bearer Token)
+    """
+    env_key = os.getenv("OMNIVAX_API_KEY")
+    if env_key:
+        return {"X-API-Key": env_key}
+    
+    if config.api_key:
+        return {"X-API-Key": config.api_key}
+        
+    if config.access_token:
+        return {"Authorization": f"Bearer {config.access_token}"}
+        
+    return {}

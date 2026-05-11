@@ -23,6 +23,8 @@ class User(Base):
     role = Column(String, default=UserRole.STANDARD)
     is_active = Column(Boolean, default=True)
     is_premium = Column(Boolean, default=False)
+    onboarding_completed = Column(Boolean, default=False)
+    profile_metadata = Column(String, nullable=True) # JSON encoded onboarding data
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     predictions = relationship("PredictionLog", back_populates="user")
@@ -62,6 +64,8 @@ class PredictionLog(Base):
     confidence = Column(Float)
     full_result_json = Column(String)  # Full top-k json
     is_live_video = Column(Boolean, default=False)
+    region = Column(String, nullable=True)
+    country = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="predictions")
@@ -104,3 +108,16 @@ class Benchmark(Base):
     throughput_img_per_sec = Column(Float)
     notes = Column(String)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    action = Column(String, nullable=False)
+    resource_id = Column(String, nullable=True)
+    metadata_json = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")

@@ -18,6 +18,11 @@ async def predict(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # Tiered Rate Limiting
+    from app.infrastructure.rate_limit import limiter
+    if limiter.is_rate_limited(current_user.id, current_user.role, "/predict"):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again in a minute.")
+
     # Basic Validation
     if image.content_type not in {"image/jpeg", "image/png", "image/jpg"}:
         raise HTTPException(status_code=400, detail="Only JPG/PNG images are allowed.")

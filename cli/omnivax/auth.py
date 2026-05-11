@@ -1,7 +1,4 @@
-import typer
-from rich.console import Console
-from supabase import create_client, Client
-from .config import load_config, save_config, clear_config, CliConfig
+from .config import load_config, save_config, clear_config, CliConfig, get_auth_headers
 
 app = typer.Typer(help="Manage Omnivax authentication.")
 console = Console()
@@ -70,12 +67,13 @@ app.add_typer(keys_app, name="keys")
 def create_key(name: str = typer.Argument(..., help="A descriptive name for the key")):
     """Generate a new long-lived API key."""
     config = load_config()
-    if not config.access_token:
-        console.print("[red]Error:[/red] You must be logged in to create API keys.")
+    headers = get_auth_headers(config)
+    if not headers:
+        console.print("[red]Error:[/red] You must be authenticated to create API keys.")
         return
 
     try:
-        response = httpx.post(f"{config.api_url}/auth/api-keys?name={name}", headers={"Authorization": f"Bearer {config.access_token}"})
+        response = httpx.post(f"{config.api_url}/auth/api-keys?name={name}", headers=headers)
         response.raise_for_status()
         data = response.json()
         console.print(f"[green]Key created successfully![/green]")
@@ -89,12 +87,13 @@ def create_key(name: str = typer.Argument(..., help="A descriptive name for the 
 def list_keys():
     """List all your active and inactive API keys."""
     config = load_config()
-    if not config.access_token:
-        console.print("[red]Error:[/red] You must be logged in to list API keys.")
+    headers = get_auth_headers(config)
+    if not headers:
+        console.print("[red]Error:[/red] You must be authenticated to list API keys.")
         return
 
     try:
-        response = httpx.get(f"{config.api_url}/auth/api-keys", headers={"Authorization": f"Bearer {config.access_token}"})
+        response = httpx.get(f"{config.api_url}/auth/api-keys", headers=headers)
         response.raise_for_status()
         keys = response.json()
         
@@ -117,9 +116,13 @@ def list_keys():
 def revoke_key(key_id: str = typer.Argument(..., help="The ID (or prefix) of the key to revoke")):
     """Permanently delete an API key."""
     config = load_config()
-    # Need full ID for exact match, or we could handle search in future
+    headers = get_auth_headers(config)
+    if not headers:
+        console.print("[red]Error:[/red] You must be authenticated to revoke keys.")
+        return
+
     try:
-        response = httpx.delete(f"{config.api_url}/auth/api-keys/{key_id}", headers={"Authorization": f"Bearer {config.access_token}"})
+        response = httpx.delete(f"{config.api_url}/auth/api-keys/{key_id}", headers=headers)
         response.raise_for_status()
         console.print("[green]Key revoked successfully.[/green]")
     except Exception as e:

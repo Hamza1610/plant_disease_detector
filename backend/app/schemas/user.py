@@ -7,6 +7,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    role: Optional[str] = "standard"
 
 class UserResponse(UserBase):
     id: str

@@ -3,7 +3,7 @@ import httpx
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
-from .config import load_config
+from .config import load_config, get_auth_headers
 
 app = typer.Typer(help="Execute diagnostic tasks and batch predictions.")
 console = Console()
@@ -32,9 +32,10 @@ def predict(
                 files = {"image": (file.name, f, "image/jpeg")}
                 data = {"model_id": model_id}
                 
-                headers = {}
-                if config.access_token:
-                    headers["Authorization"] = f"Bearer {config.access_token}"
+                files = {"image": (file.name, f, "image/jpeg")}
+                data = {"model_id": model_id}
+                
+                headers = get_auth_headers(config)
                 
                 response = httpx.post(
                     f"{config.api_url}/predict",

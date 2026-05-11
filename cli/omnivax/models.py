@@ -3,7 +3,7 @@ import httpx
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
-from .config import load_config
+from .config import load_config, get_auth_headers
 
 app = typer.Typer(help="Manage and interact with models.")
 console = Console()
@@ -15,11 +15,7 @@ def list():
     
     with console.status("[bold green]Fetching registry..."):
         try:
-            # We don't necessarily need auth for public list, but good to have
-            headers = {}
-            if config.access_token:
-                headers["Authorization"] = f"Bearer {config.access_token}"
-                
+            headers = get_auth_headers(config)
             response = httpx.get(f"{config.api_url}/models", headers=headers)
             response.raise_for_status()
             models = response.json()
@@ -31,7 +27,6 @@ def list():
             table.add_column("Accuracy", justify="right")
 
             for m in models:
-                # Use default accuracy if not provided in list
                 table.add_row(
                     m.get("model_id"),
                     m.get("name"),
@@ -48,7 +43,8 @@ def info(model_id: str):
     """Get detailed information about a specific model."""
     config = load_config()
     try:
-        response = httpx.get(f"{config.api_url}/models/{model_id}")
+        headers = get_auth_headers(config)
+        response = httpx.get(f"{config.api_url}/models/{model_id}", headers=headers)
         response.raise_for_status()
         model = response.json()
         
@@ -76,8 +72,9 @@ def push(
     python omnivax_cli.py models push -f ./model.h5 --id my_corn_v2 --name 'Corn V2'
     """
     config = load_config()
-    if not config.access_token:
-        console.print("[red]Error:[/red] You must be logged in to push models.")
+    headers = get_auth_headers(config)
+    if not headers:
+        console.print("[red]Error:[/red] You must be authenticated to push models.")
         return
 
     if not file.exists():
@@ -95,7 +92,6 @@ def push(
                     "class_names": classes,
                     "tags": tags
                 }
-                headers = {"Authorization": f"Bearer {config.access_token}"}
                 
                 response = httpx.post(
                     f"{config.api_url}/models/upload",
