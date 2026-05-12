@@ -57,7 +57,7 @@ export default function EnterpriseDashboard() {
               <ShieldAlert className="w-5 h-5" />
               <span className="text-sm font-bold uppercase tracking-widest">Enterprise Intelligence</span>
             </div>
-            <h1 className="text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
               Global Analytics
             </h1>
             <p className="text-gray-400 mt-4 text-lg max-w-2xl">
@@ -66,7 +66,7 @@ export default function EnterpriseDashboard() {
           </header>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             {[
               { label: 'Total Platform Scans', value: stats?.total_scans || '0', icon: Activity, color: 'text-green-400' },
               { label: 'Active Farm Partners', value: stats?.total_users || '0', icon: Users, color: 'text-blue-400' },
@@ -128,7 +128,7 @@ export default function EnterpriseDashboard() {
           </div>
 
           {/* Security & Access Section */}
-          <div className="mt-12 bg-white/[0.02] border border-white/5 p-12 rounded-[3rem]">
+          <div className="mt-12 bg-white/[0.02] border border-white/5 p-6 md:p-12 rounded-3xl md:rounded-[3rem]">
             <SecuritySettings />
           </div>
         </div>

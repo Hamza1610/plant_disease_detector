@@ -53,6 +53,18 @@ export default function JoinPilot() {
     }
   };
 
+  const handleOAuth = async (provider: 'google' | 'github') => {
+    // Note: The selected role is saved in localStorage so the callback can register it if needed
+    localStorage.setItem('pending_role', role);
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      }
+    });
+    if (authError) setError(authError.message);
+  };
+
   const roles = [
     { id: 'standard', title: 'Farmer', desc: 'Individual diagnostics', icon: Users },
     { id: 'developer', title: 'Developer', desc: 'API & Model access', icon: Code },
@@ -60,55 +72,55 @@ export default function JoinPilot() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[90vh] px-4 py-12">
-      <div className="w-full max-w-xl glass-panel p-10 rounded-[2.5rem] relative overflow-hidden border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-green-500/10 rounded-full blur-[80px] pointer-events-none"></div>
-        <div className="text-center mb-10 relative z-10">
-          <h1 className="text-4xl font-bold text-white mb-3">Join Omnivax Pilot</h1>
-          <p className="text-gray-400">Select your role to begin your high-accuracy diagnostic journey.</p>
+    <div className="flex flex-col items-center justify-center min-h-[80vh] px-4">
+      <div className="w-full max-w-md glass-panel p-8 rounded-2xl relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="text-center mb-8 relative z-10">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Join Omnivax Pilot</h1>
+          <p className="text-gray-400 text-xs sm:text-sm">Create your enterprise or farmer account to start deploying AI.</p>
         </div>
 
-        {error && <div className="mb-6 text-red-500 text-sm p-4 bg-red-500/10 rounded-2xl border border-red-500/20">{error}</div>}
+        {error && <div className="mb-4 text-red-500 text-sm p-3 bg-red-500/10 rounded-xl border border-red-500/20">{error}</div>}
 
-        <div className="grid grid-cols-3 gap-4 mb-10 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 relative z-10">
           {roles.map((r) => (
             <button
               key={r.id}
               onClick={() => setRole(r.id as any)}
-              className={`flex flex-col items-center gap-3 p-5 rounded-3xl border transition-all ${
+              className={`flex sm:flex-col items-center justify-start sm:justify-center gap-3 p-3 rounded-xl border transition-all ${
                 role === r.id 
-                ? 'bg-green-500/10 border-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
+                ? 'bg-green-500/10 border-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.2)]' 
                 : 'bg-white/[0.02] border-white/5 text-gray-500 hover:border-white/20'
               }`}
             >
-              <r.icon className={`w-8 h-8 ${role === r.id ? 'text-green-400' : 'text-gray-600'}`} />
-              <div className="text-center">
-                <p className="font-bold text-sm">{r.title}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">{r.desc}</p>
+              <r.icon className={`w-5 h-5 shrink-0 ${role === r.id ? 'text-green-400' : 'text-gray-600'}`} />
+              <div className="text-left sm:text-center flex-1">
+                <p className="font-bold text-sm sm:text-[11px] leading-tight">{r.title}</p>
+                <p className="text-[10px] sm:text-[9px] text-gray-500 mt-0.5 sm:hidden md:block">{r.desc}</p>
               </div>
-              {role === r.id && <CheckCircle2 className="w-4 h-4 text-green-500 absolute top-3 right-3" />}
+              {role === r.id && <CheckCircle2 className="w-4 h-4 sm:w-3 sm:h-3 text-green-500 shrink-0" />}
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleRegister} className="flex flex-col gap-5 relative z-10">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Email Address</label>
+        <form onSubmit={handleRegister} className="flex flex-col gap-4 relative z-10">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Email <span className="text-red-500">*</span></label>
             <input 
               type="email" 
               required
-              className="w-full bg-black/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500/50 transition-all placeholder:text-gray-700"
+              className="w-full bg-black border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="enterprise@farm.com"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Password</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Password <span className="text-red-500">*</span></label>
             <input 
               type="password" 
               required
-              className="w-full bg-black/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-green-500/50 transition-all placeholder:text-gray-700"
+              className="w-full bg-black border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -118,13 +130,37 @@ export default function JoinPilot() {
           <button 
             type="submit" 
             disabled={loading}
-            className="mt-6 w-full bg-green-500 hover:bg-green-400 text-black font-bold py-5 rounded-2xl transition-all shadow-[0_10px_25px_rgba(34,197,94,0.3)] disabled:opacity-50 text-lg"
+            className="mt-2 w-full bg-green-500 hover:bg-green-400 text-black font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(34,197,94,0.3)] disabled:opacity-50 text-sm"
           >
-            {loading ? "Initializing..." : "Create Account"}
+            {loading ? "Registering..." : "Create Account"}
           </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-black px-2 text-gray-500">Or continue with</span></div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <button 
+              type="button"
+              onClick={() => handleOAuth('google')}
+              className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl border border-white/10 transition-all text-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C9.03,19.27 6.59,17.38 6.59,12.03C6.59,6.68 9.03,4.79 12.19,4.79C13.97,4.79 15.46,5.42 16.5,6.35L18.6,4.26C16.95,2.71 14.66,1.88 12.19,1.88C6.21,1.88 3.5,6.62 3.5,12.03C3.5,17.44 6.21,22.18 12.19,22.18C17.78,22.18 21.61,18.28 21.61,12.03C21.61,11.53 21.57,11.1 21.35,11.1V11.1Z"/></svg>
+              Google
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleOAuth('github')}
+              className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl border border-white/10 transition-all text-sm"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"></path></svg>
+              GitHub
+            </button>
+          </div>
         </form>
-        <p className="mt-8 text-center text-sm text-gray-500">
-           Already a pilot member? <a href="/login" className="text-green-400 font-bold hover:underline">Sign in here</a>
+        <p className="mt-6 text-center text-sm text-gray-400">
+           Already a pilot member? <a href="/login" className="text-green-400 font-medium hover:underline">Sign in here</a>
         </p>
       </div>
     </div>

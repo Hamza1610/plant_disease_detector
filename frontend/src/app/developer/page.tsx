@@ -62,7 +62,7 @@ export default function DeveloperDashboard() {
         <div className="max-w-7xl mx-auto">
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div>
-              <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+              <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
                 Developer Hub
               </h1>
               <p className="text-gray-400 mt-2">Manage your diagnostic models and view performance metrics.</p>
@@ -102,7 +102,7 @@ export default function DeveloperDashboard() {
                 <button className="text-sm text-gray-400 hover:text-white transition-colors font-medium">View All</button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full text-left whitespace-nowrap">
                   <thead>
                     <tr className="text-gray-500 text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-medium">Model Name</th>
