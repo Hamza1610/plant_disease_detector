@@ -135,7 +135,7 @@ export default function SecuritySettings() {
         </div>
       )}
 
-      <form onSubmit={handleCreateKey} className="flex gap-4">
+      <form onSubmit={handleCreateKey} className="flex flex-col sm:flex-row gap-4">
         <input 
           type="text" 
           placeholder="Key Name (e.g. Production CLI)"
@@ -153,36 +153,38 @@ export default function SecuritySettings() {
       </form>
 
       <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-white/5">
-              <th className="px-6 py-4 font-medium">Name</th>
-              <th className="px-6 py-4 font-medium">Prefix</th>
-              <th className="px-6 py-4 font-medium">Last Used</th>
-              <th className="px-6 py-4 font-medium text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {keys.map((key) => (
-              <tr key={key.id} className="text-sm">
-                <td className="px-6 py-4 font-medium text-gray-200">{key.name}</td>
-                <td className="px-6 py-4 font-mono text-yellow-500/80">{key.prefix}</td>
-                <td className="px-6 py-4 text-gray-400">
-                  {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : 'Never'}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button 
-                    onClick={() => handleRevokeKey(key.id)}
-                    className="text-gray-500 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-all"
-                    title="Revoke Key"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead>
+              <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-white/5">
+                <th className="px-6 py-4 font-medium">Name</th>
+                <th className="px-6 py-4 font-medium">Prefix</th>
+                <th className="px-6 py-4 font-medium">Last Used</th>
+                <th className="px-6 py-4 font-medium text-right">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {keys.map((key) => (
+                <tr key={key.id} className="text-sm">
+                  <td className="px-6 py-4 font-medium text-gray-200">{key.name}</td>
+                  <td className="px-6 py-4 font-mono text-yellow-500/80">{key.prefix}</td>
+                  <td className="px-6 py-4 text-gray-400">
+                    {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : 'Never'}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => handleRevokeKey(key.id)}
+                      className="text-gray-500 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-all"
+                      title="Revoke Key"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {keys.length === 0 && (
           <div className="py-12 text-center">
             <Key className="w-8 h-8 text-gray-700 mx-auto mb-3" />

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useUser } from '@/hooks/useUser';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: boolean) => void }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
 
@@ -37,7 +37,22 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="w-72 bg-[#050505] border-r border-white/5 flex flex-col h-screen sticky top-0 overflow-y-auto">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-[#050505] border-r border-white/5 flex flex-col h-screen overflow-y-auto
+        transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:relative md:translate-x-0
+      `}>
       <div className="p-8">
         <Link href="/" className="flex items-center gap-3 mb-12">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-green-500 to-emerald-400 flex items-center justify-center font-bold text-black text-sm shadow-[0_0_20px_rgba(34,197,94,0.4)]">
@@ -90,5 +105,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }
