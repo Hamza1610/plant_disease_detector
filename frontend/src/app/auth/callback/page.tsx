@@ -13,15 +13,15 @@ export default function AuthCallback() {
       
       if (error) {
         console.error('Auth callback error:', error.message);
-        router.push('/login?error=auth_failed');
+        router.replace('/login?error=auth_failed');
         return;
       }
 
       if (data?.session) {
         localStorage.setItem('token', data.session.access_token);
-        router.push('/predict');
+        router.replace('/dashboard');
       } else {
-        router.push('/login');
+        router.replace('/login');
       }
     };
 

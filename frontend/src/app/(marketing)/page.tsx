@@ -32,7 +32,7 @@ export default function Home() {
               <Link href="/join-pilot" className="w-full sm:w-auto inline-flex justify-center items-center rounded-full bg-gradient-to-r from-green-500 to-emerald-400 px-6 py-3 sm:px-8 sm:py-3.5 text-xs sm:text-sm font-bold text-black shadow-[0_0_30px_rgba(34,197,94,0.3)] hover:shadow-[0_0_40px_rgba(34,197,94,0.5)] hover:scale-105 transition-all duration-300">
                 Join the Pilot Program
               </Link>
-              <Link href="/models" className="w-full sm:w-auto inline-flex justify-center items-center rounded-full bg-white/5 border border-white/10 px-6 py-3 sm:px-8 sm:py-3.5 text-xs sm:text-sm font-medium text-white hover:bg-white/10 transition-all duration-300">
+              <Link href="/dashboard/models" className="w-full sm:w-auto inline-flex justify-center items-center rounded-full bg-white/5 border border-white/10 px-6 py-3 sm:px-8 sm:py-3.5 text-xs sm:text-sm font-medium text-white hover:bg-white/10 transition-all duration-300">
                 Explore Model Catalog
               </Link>
             </div>
