@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     DATABASE_URL: str
     GEMINI_API_KEY: str
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000", 
+        "https://52.4.85.204.sslip.io"
+    ]
 
     # Supabase Configuration
     SUPABASE_URL: str = ""
