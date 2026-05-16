@@ -115,7 +115,7 @@ export default function Benchmarks() {
 
                  <div className="pt-4 border-t border-white/10 flex justify-end gap-4">
                     <button onClick={() => setSelectedModel(null)} className="px-6 py-2 border border-white/20 rounded-xl text-white font-medium hover:bg-white/10 transition-colors">Close</button>
-                    <a href={`/predict?model=${selectedModel.model_id}`} className="px-6 py-2 bg-green-500 text-black font-bold shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:bg-green-400 rounded-xl transition-colors">Deploy Model</a>
+                    <a href={`/dashboard/predict?model=${selectedModel.model_id}`} className="px-6 py-2 bg-green-500 text-black font-bold shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:bg-green-400 rounded-xl transition-colors">Deploy Model</a>
                  </div>
               </div>
            </div>
