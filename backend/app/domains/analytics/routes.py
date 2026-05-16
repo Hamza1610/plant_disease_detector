@@ -16,6 +16,14 @@ def get_analytics_summary(
     service = AnalyticsService(db)
     return service.get_global_summary()
 
+@router.get("/developer/summary")
+def get_developer_analytics_summary(
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role([UserRole.DEVELOPER]))
+):
+    service = AnalyticsService(db)
+    return service.get_developer_summary(current_user.id)
+
 @router.get("/geospatial")
 def get_geospatial_stats(
     db: Session = Depends(get_db),

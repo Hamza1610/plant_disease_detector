@@ -27,6 +27,24 @@ class AnalyticsService:
             "top_diseases": [{"label": d[0], "count": d[1]} for d in top_diseases]
         }
 
+    def get_developer_summary(self, developer_id: str) -> Dict[str, Any]:
+        total_scans = self.db.query(func.count(models.PredictionLog.id))\
+            .join(models.Model, models.PredictionLog.model_id == models.Model.id)\
+            .filter(models.Model.owner_id == developer_id).scalar() or 0
+
+        avg_confidence = self.db.query(func.avg(models.PredictionLog.confidence))\
+            .join(models.Model, models.PredictionLog.model_id == models.Model.id)\
+            .filter(models.Model.owner_id == developer_id).scalar() or 0.0
+
+        active_models_count = self.db.query(func.count(models.Model.id))\
+            .filter(models.Model.owner_id == developer_id, models.Model.status == "active").scalar() or 0
+
+        return {
+            "total_scans": total_scans,
+            "active_models": active_models_count,
+            "average_confidence": round(float(avg_confidence) * 100, 1)
+        }
+
     def get_geospatial_stats(self) -> List[Dict[str, Any]]:
         stats = self.db.query(
             models.PredictionLog.region,

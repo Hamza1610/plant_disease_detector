@@ -48,7 +48,8 @@ class Model(Base):
     tags = Column(String) # JSON encoded list of tags
     pricing_tier = Column(String, default="free")
     benchmark_summary = Column(String) # JSON encoded summary
-    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    verification_logs = Column(String) # JSON encoded test results
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     metadata_json = Column(String) # Catch-all for extra data
 

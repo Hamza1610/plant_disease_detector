@@ -16,3 +16,9 @@ supabase
 psycopg2-binary
 pytest
 httpx
+huggingface_hub
+kagglehub
+h5py
+requests
+tensorflow
+tf-keras

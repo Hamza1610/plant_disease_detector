@@ -35,6 +35,8 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [probing, setProbing] = useState(false);
   const [isIdAvailable, setIsIdAvailable] = useState<boolean | null>(null);
   const [checkingId, setCheckingId] = useState(false);
   

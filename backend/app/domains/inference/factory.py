@@ -1,11 +1,18 @@
 from typing import Any, Dict, Type
 from app.domains.inference.adapters.base import BaseAdapter
 from app.domains.inference.adapters.efficientnet import EfficientNetAdapter
+from app.domains.inference.adapters.keras_h5 import KerasH5Adapter
+from app.domains.inference.adapters.sklearn_pickle import SklearnPickleAdapter
 
 class AdapterFactory:
     _registry: Dict[str, Type[BaseAdapter]] = {
         "pytorch": EfficientNetAdapter,
-        "efficientnet": EfficientNetAdapter, # Alias
+        "efficientnet": EfficientNetAdapter,
+        "keras": KerasH5Adapter,
+        "h5": KerasH5Adapter,
+        "tensorflow": KerasH5Adapter,
+        "sklearn": SklearnPickleAdapter,
+        "pickle": SklearnPickleAdapter,
     }
 
     @classmethod
