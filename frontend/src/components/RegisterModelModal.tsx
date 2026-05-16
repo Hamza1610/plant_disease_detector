@@ -427,7 +427,7 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {checkingId ? <Loader2 className="w-4 h-4 text-gray-500 animate-spin" /> : 
                          isIdAvailable === true ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
-                         isIdAvailable === false ? <AlertCircle className="w-4 h-4 text-red-500" title="ID already taken" /> : null}
+                         isIdAvailable === false ? <AlertCircle className="w-4 h-4 text-red-500" /> : null}
                       </div>
                     </div>
                     {isIdAvailable === false && (
