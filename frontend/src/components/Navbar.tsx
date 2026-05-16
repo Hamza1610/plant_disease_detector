@@ -71,26 +71,10 @@ function MobileMenu({ isOpen, onClose, user, loading, logout, pathname }: {
           </button>
         </div>
 
-        {/* Links */}
         <nav className="flex-1 overflow-y-auto p-5 space-y-1">
-          <MobileNavLink href="/models" label="Catalog" active={pathname === '/models'} onClick={onClose} />
-          <MobileNavLink href="/predict" label="Prediction Studio" active={pathname === '/predict'} onClick={onClose} />
-          <MobileNavLink href="/benchmarks" label="Benchmarks" active={pathname === '/benchmarks'} onClick={onClose} />
+          <MobileNavLink href="/" label="Home" active={pathname === '/'} onClick={onClose} />
+          <MobileNavLink href="/#features" label="Features" active={pathname === '/#features'} onClick={onClose} />
           <MobileNavLink href="/pricing" label="Pricing" active={pathname === '/pricing'} onClick={onClose} />
-
-          {user?.role === 'developer' && (
-            <>
-              <div className="mt-5 mb-2 px-4 text-[10px] font-bold text-green-500 uppercase tracking-[0.2em]">Developer</div>
-              <MobileNavLink href="/developer" label="Dev Hub" active={pathname === '/developer'} onClick={onClose} accent="green" />
-            </>
-          )}
-
-          {(user?.role === 'enterprise' || user?.role === 'developer') && (
-            <>
-              <div className="mt-5 mb-2 px-4 text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em]">Enterprise</div>
-              <MobileNavLink href="/enterprise" label="Intelligence Dashboard" active={pathname === '/enterprise'} onClick={onClose} accent="blue" />
-            </>
-          )}
         </nav>
 
         {/* Auth Footer */}
@@ -108,12 +92,13 @@ function MobileMenu({ isOpen, onClose, user, loading, logout, pathname }: {
                       <p className="text-[10px] text-gray-500 uppercase tracking-widest">{user.role}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => { logout(); onClose(); }}
-                    className="w-full bg-red-500/10 border border-red-500/20 text-red-400 py-3 rounded-xl text-sm font-bold hover:bg-red-500/20 transition-colors"
+                  <Link
+                    href="/dashboard"
+                    onClick={onClose}
+                    className="block w-full text-center bg-green-500 text-black py-3 rounded-xl text-sm font-bold hover:bg-green-400 transition-colors"
                   >
-                    Sign Out
-                  </button>
+                    Go to Dashboard
+                  </Link>
                 </>
               ) : (
                 <>
@@ -155,25 +140,15 @@ export default function Navbar() {
 
             {/* Desktop */}
             <div className="hidden md:flex items-center gap-x-4">
-              <Link href="/models" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/models' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Catalog</Link>
-              <Link href="/predict" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/predict' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Studio</Link>
-
-              {user?.role === 'developer' && (
-                <Link href="/developer" className={`px-2 py-1 rounded-md text-sm font-medium border border-green-500/30 bg-green-500/5 transition-colors ${pathname === '/developer' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Dev Hub</Link>
-              )}
-
-              {(user?.role === 'enterprise' || user?.role === 'developer') && (
-                <Link href="/enterprise" className={`px-2 py-1 rounded-md text-sm font-medium border border-blue-500/30 bg-blue-500/5 transition-colors ${pathname === '/enterprise' ? 'text-blue-400' : 'text-gray-300 hover:text-white'}`}>Intelligence</Link>
-              )}
-
-              <Link href="/benchmarks" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors">Benchmarks</Link>
-              <Link href="/pricing" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors">Pricing</Link>
+              <Link href="/" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Home</Link>
+              <Link href="/#features" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors">Features</Link>
+              <Link href="/pricing" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/pricing' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Pricing</Link>
 
               <div className="flex items-center gap-3 ml-4 border-l border-white/10 pl-4">
                 {!loading && (
                   <>
                     {user ? (
-                      <button onClick={() => logout()} className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-medium transition-all">Sign Out</button>
+                      <Link href="/dashboard" className="bg-green-500 hover:bg-green-400 text-black px-4 py-2 rounded-full text-sm font-bold shadow-[0_0_15px_rgba(34,197,94,0.4)] transition-all">Go to Dashboard</Link>
                     ) : (
                       <>
                         <Link href="/login" className="text-gray-300 hover:text-white px-4 py-2 text-sm font-medium transition-all">Sign In</Link>

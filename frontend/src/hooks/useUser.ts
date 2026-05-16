@@ -28,7 +28,31 @@ export function useUser() {
         }
       });
       if (res.ok) {
-        const data = await res.json();
+        let data = await res.json();
+        
+        // Intercept and sync role mapping from the pilot selection portal
+        const pendingRole = localStorage.getItem('pending_role');
+        if (pendingRole && data.role === 'standard') {
+          try {
+            const syncRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/sync-role`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ role: pendingRole })
+            });
+            if (syncRes.ok) {
+              const syncData = await syncRes.json();
+              data.role = syncData.role;
+            }
+          } catch (syncErr) {
+            console.error('Failed to auto-sync requested role:', syncErr);
+          } finally {
+            localStorage.removeItem('pending_role');
+          }
+        }
+
         setUser(data);
       }
     } catch (err) {

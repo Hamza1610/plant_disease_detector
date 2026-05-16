@@ -20,16 +20,15 @@ import { useUser } from '@/hooks/useUser';
 export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: (val: boolean) => void }) {
   const pathname = usePathname();
   const { user, logout } = useUser();
-
   const links = [
-    { name: 'Overview', href: '/developer', icon: LayoutDashboard, roles: ['developer'] },
-    { name: 'Enterprise Home', href: '/enterprise', icon: Globe, roles: ['enterprise'] },
-    { name: 'Model Registry', href: '/models', icon: Database, roles: ['developer', 'enterprise', 'standard'] },
-    { name: 'Prediction Studio', href: '/predict', icon: Zap, roles: ['developer', 'enterprise', 'standard'] },
-    { name: 'Global Heatmap', href: '/enterprise/heatmap', icon: Activity, roles: ['enterprise'] },
-    { name: 'Performance', href: '/benchmarks', icon: BarChart3, roles: ['developer', 'enterprise'] },
-    { name: 'Security & Keys', href: '/developer#security', icon: ShieldCheck, roles: ['developer', 'enterprise'] },
-    { name: 'Audit Logs', href: '/enterprise#audit', icon: Layers, roles: ['enterprise'] },
+    { name: 'Overview', href: '/dashboard/developer', icon: LayoutDashboard, roles: ['developer'] },
+    { name: 'Enterprise Home', href: '/dashboard/enterprise', icon: Globe, roles: ['enterprise'] },
+    { name: 'Model Registry', href: '/dashboard/models', icon: Database, roles: ['developer', 'enterprise', 'standard'] },
+    { name: 'Prediction Studio', href: '/dashboard/predict', icon: Zap, roles: ['developer', 'enterprise', 'standard'] },
+    { name: 'Global Heatmap', href: '/dashboard/heatmap', icon: Activity, roles: ['enterprise'] },
+    { name: 'Performance', href: '/dashboard/benchmarks', icon: BarChart3, roles: ['developer', 'enterprise', 'standard'] },
+    { name: 'Security & Keys', href: '/dashboard/security', icon: ShieldCheck, roles: ['developer', 'enterprise'] },
+    { name: 'Audit Logs', href: '/dashboard/audit', icon: Layers, roles: ['enterprise'] },
   ];
 
   const filteredLinks = links.filter(link => 
@@ -86,15 +85,16 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen: boolean, setIsO
       </div>
 
       <div className="mt-auto p-8 border-t border-white/5">
-        <div className="flex items-center gap-3 mb-6 p-3 bg-white/5 rounded-2xl border border-white/5">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs font-bold text-gray-400 uppercase">
+        <Link href="/dashboard/profile" className="flex items-center gap-3 mb-6 p-3 bg-white/5 hover:bg-white/[0.08] hover:border-green-500/20 rounded-2xl border border-white/5 transition-all group cursor-pointer">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-xs font-bold text-gray-400 uppercase group-hover:text-green-400 transition-colors">
             {user?.email?.charAt(0) || 'U'}
           </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-bold text-white truncate">{user?.email}</p>
+          <div className="overflow-hidden flex-1">
+            <p className="text-xs font-bold text-white truncate group-hover:text-green-400 transition-colors">{user?.email}</p>
             <p className="text-[10px] text-gray-500 uppercase tracking-widest">{user?.role}</p>
           </div>
-        </div>
+          <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-green-400 transform group-hover:translate-x-0.5 transition-all shrink-0" />
+        </Link>
         
         <button 
           onClick={logout}

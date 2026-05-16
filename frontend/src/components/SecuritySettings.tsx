@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Key, Copy, Check, Trash2, Shield, Loader2, Plus, Eye, EyeOff } from 'lucide-react';
+import { Key, Copy, Check, Trash2, Shield, Loader2, Plus, Eye, EyeOff, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ApiKey {
   id: string;
@@ -15,23 +15,41 @@ interface ApiKey {
 export default function SecuritySettings() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const fetchKeys = async () => {
+    setError(null);
+    setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second watchdog timeout
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/api-keys`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      
       if (res.ok) {
         const data = await res.json();
         setKeys(data);
+      } else {
+        setError("Authorization handshake rejected. Verify server credentials.");
       }
-    } catch (err) {
-      console.error('Failed to fetch keys:', err);
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        setError("The security gateway timed out. Retrying may resolve this.");
+      } else {
+        console.error('Failed to fetch keys:', err);
+        setError("API Server unreachable. Please check connectivity.");
+      }
     } finally {
       setLoading(false);
     }
@@ -88,8 +106,26 @@ export default function SecuritySettings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="w-6 h-6 text-green-500 animate-spin" />
+      <div className="flex items-center justify-center py-20 flex-col gap-4">
+        <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+        <p className="text-xs text-gray-500 font-medium tracking-wider">CONTACTING SECURE ENDPOINT...</p>
+      </div>
+    );
+  }
+
+  if (error && keys.length === 0) {
+    return (
+      <div className="border border-red-500/20 bg-red-500/5 p-8 rounded-3xl text-center">
+        <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+        <h3 className="text-lg font-bold text-gray-200">Connection Failure</h3>
+        <p className="text-sm text-gray-400 mt-1 mb-6 max-w-md mx-auto">{error}</p>
+        <button 
+          onClick={fetchKeys}
+          className="inline-flex items-center gap-2 bg-white text-black font-bold px-6 py-3 rounded-xl hover:bg-gray-200 transition-all text-sm"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Retry Handshake
+        </button>
       </div>
     );
   }
@@ -145,10 +181,10 @@ export default function SecuritySettings() {
         />
         <button 
           disabled={creating || !newKeyName}
-          className="bg-white text-black px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50 transition-all"
+          className="bg-green-500 hover:bg-green-400 text-black px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-40 shadow-[0_0_20px_rgba(34,197,94,0.3)] whitespace-nowrap shrink-0"
         >
           {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Generate Key
+          Generate Access Key
         </button>
       </form>
 
