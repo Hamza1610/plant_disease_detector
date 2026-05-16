@@ -69,44 +69,62 @@ class ModelValidationService:
     @staticmethod
     async def run_smoke_test(file_path: str, framework: str, expected_classes: List[str]) -> Dict[str, Any]:
         """
-        Performs a synthetic inference test to verify model integrity.
+        Performs a synthetic inference test and benchmarks performance.
         """
         logs = []
         is_success = False
+        benchmark_results = {}
         
         try:
-            logs.append(f"Starting smoke test for {framework} model...")
+            logs.append(f"Starting smoke test and performance profiling for {framework} model...")
             
+            adapter = None
             if framework == "keras":
                 adapter = KerasH5Adapter(file_path, {"class_names": expected_classes})
-                # Create a synthetic 224x224 RGB image
+            elif framework == "sklearn":
+                adapter = SklearnPickleAdapter(file_path, {"class_names": expected_classes})
+            
+            if adapter:
+                # 1. Functional Verification
                 dummy_input = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
                 from PIL import Image
                 from io import BytesIO
+                import time
+                
                 img = Image.fromarray(dummy_input)
                 buf = BytesIO()
                 img.save(buf, format="JPEG")
+                img_bytes = buf.getvalue()
                 
-                results = adapter.predict_image_bytes(buf.getvalue())
-                logs.append(f"Inference successful. Top result: {results[0]['label']}")
+                results = adapter.predict_image_bytes(img_bytes)
+                logs.append(f"Functional check passed. Top result: {results[0]['label']}")
+                
+                # 2. Latency Benchmarking
+                logs.append("Initializing benchmarking sequence (N=10 iterations)...")
+                latencies = []
+                # Warm-up
+                adapter.predict_image_bytes(img_bytes)
+                
+                for _ in range(10):
+                    start_time = time.perf_counter()
+                    adapter.predict_image_bytes(img_bytes)
+                    end_time = time.perf_counter()
+                    latencies.append((end_time - start_time) * 1000) # ms
+                
+                p50 = np.percentile(latencies, 50)
+                p95 = np.percentile(latencies, 95)
+                
+                benchmark_results = {
+                    "latency_ms_p50": round(float(p50), 2),
+                    "latency_ms_p95": round(float(p95), 2),
+                    "throughput": round(1000 / p50, 2) if p50 > 0 else 0
+                }
+                
+                logs.append(f"Performance Profile: P50: {benchmark_results['latency_ms_p50']}ms | P95: {benchmark_results['latency_ms_p95']}ms")
                 is_success = True
-                
-            elif framework == "sklearn":
-                adapter = SklearnPickleAdapter(file_path, {"class_names": expected_classes})
-                dummy_input = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
-                from PIL import Image
-                from io import BytesIO
-                img = Image.fromarray(dummy_input)
-                buf = BytesIO()
-                img.save(buf, format="JPEG")
-                
-                results = adapter.predict_image_bytes(buf.getvalue())
-                logs.append(f"Inference successful. Top result: {results[0]['label']}")
-                is_success = True
-            
             else:
                 logs.append(f"Framework {framework} not yet supported for automated smoke testing.")
-                is_success = True # Pass for unsupported frameworks for now
+                is_success = True
                 
         except Exception as e:
             logs.append(f"CRITICAL FAILURE: {str(e)}")
@@ -114,7 +132,8 @@ class ModelValidationService:
             
         return {
             "is_success": is_success,
-            "logs": "\n".join(logs)
+            "logs": "\n".join(logs),
+            "benchmark": benchmark_results
         }
 
 validation_service = ModelValidationService()
