@@ -55,25 +55,36 @@ def seed_db():
                         })
                 db.commit()
 
-        # 3. Seed Benchmarks
-        if not db.query(models.Benchmark).first():
-            benchmarks_file = settings.models_metadata_dir / "benchmarks.json"
-            if benchmarks_file.exists():
-                benchmarks = json.loads(benchmarks_file.read_text())
-                for b in benchmarks:
-                    db_benchmark = models.Benchmark(
-                        model_id=b["model_id"],
-                        dataset=b.get("dataset", "seed_dataset"),
-                        accuracy=b.get("accuracy", b.get("validation_accuracy", 0.0)),
-                        precision_weighted=b.get("precision_weighted", 0.0),
-                        recall_weighted=b.get("recall_weighted", 0.0),
-                        f1_weighted=b.get("f1_weighted", b.get("weighted_f1", 0.0)),
-                        latency_ms_p50=b.get("latency_ms_p50", 0.0),
-                        latency_ms_p95=b.get("latency_ms_p95", 0.0),
-                        throughput_img_per_sec=b.get("throughput_img_per_sec", 0.0),
-                        notes=b.get("notes", "Seeded from legacy JSON")
-                    )
-                    db.add(db_benchmark)
                 db.commit()
+
+        # 4. Seed Prediction Logs (Heatmap Data)
+        if not db.query(models.PredictionLog).first():
+            # Create a realistic set of surveillance logs
+            log_entries = [
+                {"country": "Nigeria", "region": "Lagos", "class": "Tomato Leaf Miner", "conf": 0.94, "lat": 6.52, "lng": 3.37},
+                {"country": "Nigeria", "region": "Kano", "class": "Cassava Brown Streak", "conf": 0.88, "lat": 12.00, "lng": 8.59},
+                {"country": "Kenya", "region": "Nairobi", "class": "Maize Lethal Necrosis", "conf": 0.91, "lat": -1.29, "lng": 36.82},
+                {"country": "Ghana", "region": "Accra", "class": "Cocoa Swollen Shoot", "conf": 0.96, "lat": 5.60, "lng": -0.18},
+                {"country": "South Africa", "region": "Cape Town", "class": "Grapevine Leafroll", "conf": 0.82, "lat": -33.92, "lng": 18.42},
+                {"country": "Ethiopia", "region": "Addis Ababa", "class": "Wheat Rust", "conf": 0.89, "lat": 9.03, "lng": 38.74},
+                {"country": "Tanzania", "region": "Dar es Salaam", "class": "Banana Xanthomonas Wilt", "conf": 0.93, "lat": -6.79, "lng": 39.20},
+            ]
+            
+            # Create a bunch of duplicates to simulate density
+            import random
+            for entry in log_entries:
+                for _ in range(random.randint(5, 120)):
+                    log = models.PredictionLog(
+                        model_id="omnivax-v1",
+                        user_id="seed_user",
+                        image_path="static/uploads/seed.jpg",
+                        predicted_class=entry["class"],
+                        confidence=entry["conf"] + random.uniform(-0.1, 0.05),
+                        region=entry["region"],
+                        country=entry["country"],
+                        client_ip=f"192.168.1.{random.randint(1,255)}"
+                    )
+                    db.add(log)
+            db.commit()
     finally:
         db.close()

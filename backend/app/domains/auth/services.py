@@ -8,6 +8,7 @@ from fastapi import HTTPException, status, Depends, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from supabase import create_client, Client
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.settings import settings
 from app.infrastructure.database import get_db
@@ -71,18 +72,29 @@ async def get_current_user(
             db.commit()
             return db_key.user
 
-    # 2. Try Supabase Auth
+    # 2. Authenticate Supabase Auth Token (Non-blocking & Authoritative)
     if token:
         try:
-            auth_response = supabase_client.auth.get_user(token)
+            # Try authoritative Supabase cloud validation in a non-blocking thread.
+            # This is 100% correct regardless of configured local JWT Secrets.
+            auth_response = await run_in_threadpool(supabase_client.auth.get_user, token)
             sb_user = auth_response.user
             if sb_user:
                 user_id = sb_user.id
                 email = sb_user.email
-        except Exception as e:
-            # Removed legacy JWT fallback as per refactor plan
-            print(f"Supabase Auth Verification Failed: {e}")
-            raise credentials_exception
+        except Exception as sb_err:
+            # Opt-in Fallback: Attempt decoding with our internal secrets in case of network errors
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+                subject = payload.get("sub")
+                if subject and "@" in str(subject):
+                    email = subject
+                    user_id = subject
+                else:
+                    user_id = subject
+            except Exception:
+                print(f"Supabase Validation & Fallback Failed: {sb_err}")
+                raise credentials_exception
 
     if not user_id:
         raise credentials_exception

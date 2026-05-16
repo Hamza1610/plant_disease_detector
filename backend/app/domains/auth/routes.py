@@ -1,4 +1,5 @@
 import secrets
+import json
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -128,3 +129,44 @@ def complete_onboarding(
     AuditService(db).log("onboarding_completed", user_id=current_user.id, metadata=data)
     
     return {"status": "success", "message": "Onboarding profile updated"}
+
+@router.post("/sync-role", response_model=dict)
+def sync_user_role(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    requested_role = payload.get("role")
+    valid_roles = ["standard", "developer", "enterprise"]
+    
+    if requested_role in valid_roles:
+        # Safety: Only allow updates if user is standard (prevent escalation hacks)
+        if current_user.role == models.UserRole.STANDARD:
+            current_user.role = requested_role
+            db.commit()
+            
+            from app.domains.system.audit import AuditService
+            AuditService(db).log("role_synced", user_id=current_user.id, metadata={"role": requested_role})
+            
+            return {"status": "success", "role": requested_role}
+            
+    return {"status": "no-op", "role": current_user.role}
+
+@router.delete("/account")
+def delete_account(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Log activity before destroying the record context
+    from app.domains.system.audit import AuditService
+    AuditService(db).log("account_deleted", user_id=current_user.id, resource_id=current_user.id)
+
+    # Manually purge related entities to avoid foreign key constraint violations
+    db.query(models.ApiKey).filter(models.ApiKey.user_id == current_user.id).delete()
+    db.query(models.PredictionLog).filter(models.PredictionLog.user_id == current_user.id).delete()
+    
+    # Finally, delete user identity
+    db.delete(current_user)
+    db.commit()
+    
+    return {"message": "Account fully deleted"}

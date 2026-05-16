@@ -12,6 +12,10 @@ from app.domains.models.repository import ModelRepository
 from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest
 from app.core.settings import settings
 
+from app.domains.models.hub import hub_service
+from app.domains.models.adapter import validation_service
+from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest, PullModelRequest, ProbeModelRequest
+
 router = APIRouter(prefix="/models", tags=["models"])
 
 def _to_summary(model: models.Model) -> dict:
@@ -25,7 +29,8 @@ def _to_summary(model: models.Model) -> dict:
         "supported_plants": json.loads(model.supported_plants) if isinstance(model.supported_plants, str) else (model.supported_plants or []),
         "supported_diseases": json.loads(model.supported_diseases) if isinstance(model.supported_diseases, str) else (model.supported_diseases or []),
         "benchmark_summary": json.loads(model.benchmark_summary) if isinstance(model.benchmark_summary, str) else (model.benchmark_summary or {}),
-        "pricing_tier": model.pricing_tier or "free"
+        "pricing_tier": model.pricing_tier or "free",
+        "is_verified": model.is_verified
     }
 
 def _to_detail(model: models.Model) -> dict:
@@ -36,6 +41,7 @@ def _to_detail(model: models.Model) -> dict:
         "input_spec": json.loads(model.input_spec) if isinstance(model.input_spec, str) else (model.input_spec or {}),
         "output_spec": {}, # mock/computed
         "class_names": json.loads(model.output_classes) if isinstance(model.output_classes, str) else (model.output_classes or []),
+        "verification_logs": model.verification_logs or ""
     })
     return summary
 
@@ -51,6 +57,16 @@ def search_models(q: str = Query(default=""), db: Session = Depends(get_db)):
     db_models = repo.search(q)
     return [_to_summary(m) for m in db_models]
 
+@router.get("/check-id/{model_id}")
+async def check_model_id(
+    model_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    repo = ModelRepository(db)
+    exists = repo.get_by_id(model_id) is not None
+    return {"available": not exists}
+
 @router.get("/{model_id}", response_model=ModelDetail)
 def get_model(model_id: str, db: Session = Depends(get_db)):
     repo = ModelRepository(db)
@@ -58,6 +74,51 @@ def get_model(model_id: str, db: Session = Depends(get_db)):
     if not db_model:
         raise HTTPException(status_code=404, detail="Model not found")
     return _to_detail(db_model)
+
+@router.post("/pull")
+async def pull_remote_model(
+    request: PullModelRequest,
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    try:
+        if request.source == "huggingface":
+            return await hub_service.pull_from_huggingface(request.model_id, request.filename)
+        elif request.source == "kaggle":
+            return await hub_service.pull_from_kaggle(request.model_id)
+        elif request.source == "url":
+            return await hub_service.pull_from_url(request.model_id, request.filename or "remote_model.h5")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model source")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/probe")
+async def probe_model_file(
+    request: ProbeModelRequest,
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    return validation_service.extract_metadata(request.file_path, request.framework)
+
+@router.post("/probe-upload")
+async def probe_uploaded_file(
+    file: UploadFile = File(...),
+    framework: str = Form("pytorch"),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    # Save to temp
+    temp_dir = settings.models_artifacts_dir / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    file_path = temp_dir / f"probe_{file.filename}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    metadata = validation_service.extract_metadata(str(file_path), framework)
+    
+    # Optional: cleanup or keep for a bit
+    # file_path.unlink() 
+    
+    return metadata
 
 @router.post("/upload", response_model=ModelDetail)
 async def upload_model(
@@ -67,6 +128,7 @@ async def upload_model(
     description: str = Form(""),
     class_names: str = Form("[]"),
     tags: str = Form("[]"),
+    framework: str = Form("pytorch"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
 ):
@@ -78,6 +140,18 @@ async def upload_model(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+    # --- AUTOMATED VALIDATION GATE ---
+    parsed_classes = json.loads(class_names)
+    test_results = await validation_service.run_smoke_test(str(file_path), framework, parsed_classes)
+    
+    if not test_results["is_success"]:
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(
+            status_code=422,
+            detail=f"Verification Failed: {test_results['logs']}"
+        )
+
     repo = ModelRepository(db)
     db_model = repo.create({
         "id": model_id,
@@ -87,8 +161,10 @@ async def upload_model(
         "artifact_path": str(file_path),
         "output_classes": class_names,
         "tags": tags,
-        "framework": "pytorch",
-        "status": "active"
+        "framework": framework,
+        "status": "active",
+        "is_verified": test_results["is_success"],
+        "verification_logs": test_results["logs"]
     })
     return _to_detail(db_model)
 

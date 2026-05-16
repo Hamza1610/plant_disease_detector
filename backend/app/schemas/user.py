@@ -11,9 +11,11 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: str
-    is_active: bool
-    is_premium: bool
-    role: str
+    is_active: Optional[bool] = True
+    is_premium: Optional[bool] = False
+    role: Optional[str] = "standard"
+    onboarding_completed: Optional[bool] = False
+    profile_metadata: Optional[str] = None
     created_at: datetime
 
     class Config:
