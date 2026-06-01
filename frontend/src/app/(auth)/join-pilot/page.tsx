@@ -45,7 +45,9 @@ export default function JoinPilot() {
         }
 
         localStorage.setItem("token", data.session.access_token);
-        router.push("/dashboard");
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirect = searchParams.get("redirect") || "/dashboard";
+        router.push(redirect);
       } else {
         setError("Registration successful! Please check your email for the confirmation link.");
       }
@@ -59,10 +61,15 @@ export default function JoinPilot() {
   const handleOAuth = async (provider: 'google' | 'github') => {
     // Note: The selected role is saved in localStorage so the callback can register it if needed
     localStorage.setItem('pending_role', role);
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirect = searchParams.get("redirect") || "/dashboard";
+    const redirectToUrl = new URL(`${window.location.origin}/auth/callback`);
+    redirectToUrl.searchParams.set("redirect", redirect);
+
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectToUrl.toString(),
       }
     });
     if (authError) setError(authError.message);

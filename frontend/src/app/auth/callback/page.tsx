@@ -19,7 +19,9 @@ export default function AuthCallback() {
 
       if (data?.session) {
         localStorage.setItem('token', data.session.access_token);
-        router.replace('/dashboard');
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirect = searchParams.get('redirect') || '/dashboard';
+        router.replace(redirect);
       } else {
         router.replace('/login');
       }

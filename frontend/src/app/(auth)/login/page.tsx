@@ -26,7 +26,9 @@ export default function Login() {
 
       if (data.session) {
         localStorage.setItem("token", data.session.access_token);
-        router.push("/dashboard");
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirect = searchParams.get("redirect") || "/dashboard";
+        router.push(redirect);
       }
     } catch (err: any) {
       setError(err.message);
@@ -36,10 +38,15 @@ export default function Login() {
   };
 
   const handleOAuth = async (provider: 'google' | 'github') => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const redirect = searchParams.get("redirect") || "/dashboard";
+    const redirectToUrl = new URL(`${window.location.origin}/auth/callback`);
+    redirectToUrl.searchParams.set("redirect", redirect);
+
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectToUrl.toString(),
       }
     });
     if (authError) setError(authError.message);
