@@ -59,6 +59,22 @@ def seed_db():
 
         # 4. Seed Prediction Logs (Heatmap Data)
         if not db.query(models.PredictionLog).first():
+            # Ensure seed_user exists in users table first (FK requirement)
+            seed_user = db.query(models.User).filter(models.User.id == "seed_user").first()
+            if not seed_user:
+                seed_user = models.User(
+                    id="seed_user",
+                    email="seed@omnivax.com",
+                    role=models.UserRole.STANDARD,
+                    onboarding_completed=True
+                )
+                db.add(seed_user)
+                db.commit()
+
+            # Find a valid model to link logs to (FK requirement)
+            model = db.query(models.Model).first()
+            model_id = model.id if model else "efficientnet_b0_v1"
+
             # Create a realistic set of surveillance logs
             log_entries = [
                 {"country": "Nigeria", "region": "Lagos", "class": "Tomato Leaf Miner", "conf": 0.94, "lat": 6.52, "lng": 3.37},
@@ -75,14 +91,14 @@ def seed_db():
             for entry in log_entries:
                 for _ in range(random.randint(5, 120)):
                     log = models.PredictionLog(
-                        model_id="omnivax-v1",
+                        model_id=model_id,
                         user_id="seed_user",
-                        image_path="static/uploads/seed.jpg",
+                        image_filename="seed.jpg",
                         predicted_class=entry["class"],
-                        confidence=entry["conf"] + random.uniform(-0.1, 0.05),
+                        confidence=min(1.0, max(0.0, entry["conf"] + random.uniform(-0.1, 0.05))),
                         region=entry["region"],
                         country=entry["country"],
-                        client_ip=f"192.168.1.{random.randint(1,255)}"
+                        full_result_json=json.dumps([{ "class": entry["class"], "confidence": entry["conf"] }])
                     )
                     db.add(log)
             db.commit()
