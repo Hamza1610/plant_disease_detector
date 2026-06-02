@@ -13,6 +13,8 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=sqlite:////app/data/plant_disease.db
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
     volumes:
       - ./data:/app/data
     networks:

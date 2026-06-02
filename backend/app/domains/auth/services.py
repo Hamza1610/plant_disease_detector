@@ -74,16 +74,30 @@ async def get_current_user(
 
     # 2. Authenticate Supabase Auth Token (Non-blocking & Authoritative)
     if token:
-        try:
-            # Try authoritative Supabase cloud validation in a non-blocking thread.
-            # This is 100% correct regardless of configured local JWT Secrets.
-            auth_response = await run_in_threadpool(supabase_client.auth.get_user, token)
-            sb_user = auth_response.user
-            if sb_user:
-                user_id = sb_user.id
-                email = sb_user.email
-        except Exception as sb_err:
-            # Opt-in Fallback: Attempt decoding with our internal secrets in case of network errors
+        # A. Try local decoding with Supabase JWT Secret if configured (Fastest & Offline)
+        if settings.SUPABASE_JWT_SECRET:
+            try:
+                # Supabase access tokens are signed with the project's JWT Secret
+                payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=[ALGORITHM], options={"verify_aud": False})
+                user_id = payload.get("sub")
+                email = payload.get("email")
+            except Exception as e:
+                # Log and continue to fallback methods
+                print(f"Local Supabase JWT Decode Failed: {e}")
+
+        # B. Fallback to authoritative Supabase cloud validation if local decode didn't resolve the user
+        if not user_id and settings.SUPABASE_URL and settings.SUPABASE_JWT_SECRET:
+            try:
+                auth_response = await run_in_threadpool(supabase_client.auth.get_user, token)
+                sb_user = auth_response.user
+                if sb_user:
+                    user_id = sb_user.id
+                    email = sb_user.email
+            except Exception as sb_err:
+                print(f"Supabase Cloud Auth Validation Failed: {sb_err}")
+
+        # C. Fallback to backend's internal SECRET_KEY (for local development/test logins)
+        if not user_id:
             try:
                 payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
                 subject = payload.get("sub")
@@ -92,8 +106,8 @@ async def get_current_user(
                     user_id = subject
                 else:
                     user_id = subject
-            except Exception:
-                print(f"Supabase Validation & Fallback Failed: {sb_err}")
+            except Exception as internal_err:
+                print(f"Token validation failed for all paths. Internal decode error: {internal_err}")
                 raise credentials_exception
 
     if not user_id:
