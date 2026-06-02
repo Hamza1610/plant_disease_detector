@@ -34,7 +34,7 @@ class Model(Base):
     __tablename__ = "models"
 
     id = Column(String, primary_key=True, index=True)  # e.g., 'efficientnet_b0_v1'
-    owner_id = Column(String, ForeignKey("users.id"), nullable=True)
+    owner_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     name = Column(String, index=True) # e.g., 'EfficientNet B0 Plant Disease'
     version = Column(String)
     status = Column(String, default="active") # active, archived, etc
@@ -58,7 +58,7 @@ class PredictionLog(Base):
     __tablename__ = "predictions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     model_id = Column(String, ForeignKey("models.id"))
     image_filename = Column(String)
     predicted_class = Column(String)
@@ -76,7 +76,7 @@ class ApiKey(Base):
     __tablename__ = "api_keys"
 
     id = Column(String, primary_key=True, index=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False) # e.g., 'Production CLI'
     prefix = Column(String, nullable=False) # e.g., 'omni_abc123'
     key_hash = Column(String, nullable=False, unique=True)
@@ -114,7 +114,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     action = Column(String, nullable=False)
     resource_id = Column(String, nullable=True)
     metadata_json = Column(String, nullable=True)
