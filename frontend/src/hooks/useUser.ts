@@ -54,7 +54,17 @@ export function useUser() {
         }
 
         setUser(data);
-        
+      } else {
+        if (res.status === 401 || res.status === 403) {
+          console.warn('Unauthorized session. Clearing client-side auth memory.');
+          localStorage.removeItem('token');
+          setUser(null);
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutErr) {
+            console.error('Error signing out:', signOutErr);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
