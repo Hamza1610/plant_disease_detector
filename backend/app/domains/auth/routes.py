@@ -55,6 +55,17 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+@router.get("/debug")
+def debug_auth():
+    from app.core.settings import settings
+    return {
+        "supabase_url_configured": bool(settings.SUPABASE_URL),
+        "supabase_jwt_secret_configured": bool(settings.SUPABASE_JWT_SECRET),
+        "supabase_url_value": settings.SUPABASE_URL[:25] + "..." if settings.SUPABASE_URL else None,
+        "supabase_jwt_secret_prefix": settings.SUPABASE_JWT_SECRET[:12] + "..." if settings.SUPABASE_JWT_SECRET else None,
+        "secret_key_configured": bool(settings.SECRET_KEY),
+    }
+
 # API Key Management
 @router.post("/api-keys", response_model=dict)
 def create_api_key(name: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
