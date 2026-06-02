@@ -54,6 +54,7 @@ export function useUser() {
         }
 
         setUser(data);
+        
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
