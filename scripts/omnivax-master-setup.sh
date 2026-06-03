@@ -30,12 +30,14 @@ echo ">>> Preparing Workspace..."
 mkdir -p data backups
 sudo chown -R $USER:$USER .
 
-# 4. Interactive .env Generation
+# 4. Interactive .env Generation & Update
 if [ ! -f .env ]; then
     echo ">>> Configuration Required: Generating .env..."
     read -p "Enter your Public EC2 IP: " PUBLIC_IP
     read -p "Enter your Email (for SSL): " EMAIL
     read -p "Enter Gemini API Key: " GEMINI_KEY
+    read -p "Enter Supabase URL: " SUPABASE_URL
+    read -p "Enter Supabase JWT Secret / API Secret Key: " SUPABASE_JWT_SECRET
     
     cat <<EOF > .env
 DOMAIN_NAME=$PUBLIC_IP
@@ -43,6 +45,8 @@ SSL_EMAIL=$EMAIL
 SECRET_KEY=$(openssl rand -hex 32)
 GEMINI_API_KEY=$GEMINI_KEY
 DATABASE_URL=sqlite:////app/data/plant_disease.db
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_JWT_SECRET=$SUPABASE_JWT_SECRET
 EOF
     echo ">>> .env generated successfully."
 fi

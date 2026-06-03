@@ -1,5 +1,5 @@
 /**
- * Centralized API configuration for Omniverse Platform.
+ * Centralized API configuration for Omnivax Platform.
  * 
  * Logic:
  * - Production (Vercel): Uses NEXT_PUBLIC_API_URL environment variable.
@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_API_URL) {
         return process.env.NEXT_PUBLIC_API_URL;
     }
-    
+
     // Fallback for local development
     return "http://localhost:8000";
 };

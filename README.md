@@ -1,4 +1,4 @@
-# Tiki Tice Omniverse
+# Tiki Tice Omnivax
 
 Model-first plant disease AI platform with searchable model catalog, prediction API, and benchmark-ready metadata.
 
