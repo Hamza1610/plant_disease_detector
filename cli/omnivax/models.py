@@ -1,6 +1,7 @@
 import json
 import typer
 import httpx
+import builtins
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
@@ -97,7 +98,7 @@ def push(
         weights_extensions = [".pth", ".pt", ".h5", ".pkl", ".joblib"]
         found_weights = []
         for ext in weights_extensions:
-            found_weights.extend(list(directory.glob(f"*{ext}")))
+            found_weights.extend(directory.glob(f"*{ext}"))
             
         if found_weights:
             file = found_weights[0]
@@ -134,11 +135,11 @@ def push(
             description = config_dict.get("description", "")
         if classes == "[]":
             class_list = config_dict.get("class_names") or config_dict.get("output_classes") or []
-            if isinstance(class_list, list):
+            if isinstance(class_list, builtins.list):
                 classes = json.dumps(class_list)
         if tags == "[]":
             tag_list = config_dict.get("tags") or []
-            if isinstance(tag_list, list):
+            if isinstance(tag_list, builtins.list):
                 tags = json.dumps(tag_list)
         if framework == "pytorch":
             framework = config_dict.get("framework") or "pytorch"

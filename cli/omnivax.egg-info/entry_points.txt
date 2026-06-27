@@ -1,0 +1,2 @@
+[console_scripts]
+omnivax = omnivax.main:app

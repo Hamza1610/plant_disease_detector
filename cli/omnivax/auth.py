@@ -1,3 +1,6 @@
+import typer
+from rich.console import Console
+from supabase import create_client, Client
 from .config import load_config, save_config, clear_config, CliConfig, get_auth_headers
 
 app = typer.Typer(help="Manage Omnivax authentication.")
