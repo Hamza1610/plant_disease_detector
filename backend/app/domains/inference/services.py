@@ -52,9 +52,18 @@ class InferenceService:
                 "input_spec": db_model.input_spec,
                 "framework": db_model.framework or "pytorch"
             }
-            # Add extra metadata if present
+            # Add extra metadata/config from metadata_json if present
             if db_model.metadata_json:
-                model_meta.update(json.loads(db_model.metadata_json))
+                try:
+                    meta_dict = json.loads(db_model.metadata_json)
+                    if isinstance(meta_dict, dict):
+                        model_meta.update(meta_dict)
+                        # Standardize on class_names list/output_classes
+                        if "class_names" in meta_dict:
+                            model_meta["class_names"] = meta_dict["class_names"]
+                            model_meta["output_classes"] = meta_dict["class_names"]
+                except Exception as parse_err:
+                    print(f"Error parsing metadata_json: {parse_err}")
             
             adapter = AdapterFactory.create(
                 framework=db_model.framework or "pytorch",

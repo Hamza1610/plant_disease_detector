@@ -39,6 +39,8 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
   const [probing, setProbing] = useState(false);
   const [isIdAvailable, setIsIdAvailable] = useState<boolean | null>(null);
   const [checkingId, setCheckingId] = useState(false);
+  const [selectedConfigFile, setSelectedConfigFile] = useState<File | null>(null);
+  const [configJson, setConfigJson] = useState<string>('');
   
   const configInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,8 +72,17 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
   const handleConfigSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      setSelectedConfigFile(file);
       setProbing(true);
       try {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setConfigJson(event.target.result as string);
+          }
+        };
+        reader.readAsText(file);
+
         const token = localStorage.getItem('token');
         const formData = new FormData();
         formData.append('file', file);
@@ -288,6 +299,13 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
       bodyData.append('class_names', JSON.stringify(formData.class_names.split(',').map(s => s.trim())));
       bodyData.append('tags', JSON.stringify(formData.tags.split(',').map(s => s.trim())));
       bodyData.append('framework', framework);
+      
+      if (selectedConfigFile) {
+        bodyData.append('config_file', selectedConfigFile);
+      }
+      if (configJson.trim()) {
+        bodyData.append('config_json', configJson.trim());
+      }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/upload`, {
         method: 'POST',
@@ -309,6 +327,8 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
           setStep(1);
           setFormData({ model_id: '', name: '', description: '', class_names: '', tags: '' });
           setSelectedFile(null);
+          setSelectedConfigFile(null);
+          setConfigJson('');
           setRemoteFilePath(null);
           setFramework('pytorch');
         }, 3000);
@@ -652,6 +672,30 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                     </div>
                     <p className="text-[10px] text-gray-500">Provide labels strictly separated by commas.</p>
                   </div>
+                  
+                  <div className="space-y-2 pt-1">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                      Model Config Payload (JSON Standard)
+                    </label>
+                    <textarea
+                      value={configJson}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setConfigJson(val);
+                        try {
+                          const parsed = JSON.parse(val);
+                          const classesList = parsed.class_names || parsed.output_classes || (parsed.id2label ? Object.values(parsed.id2label) : []);
+                          if (Array.isArray(classesList) && classesList.length > 0) {
+                            setFormData(prev => ({ ...prev, class_names: classesList.join(', ') }));
+                          }
+                        } catch (err) {}
+                      }}
+                      placeholder={`{\n  "class_names": ["Corn_Cercospora_Leaf_Spot", "Corn_Common_Rust", ...],\n  "framework": "pytorch"\n}`}
+                      rows={4}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-green-500/50 transition-all font-mono resize-y"
+                    />
+                  </div>
+
                   <div className="space-y-2 pt-1">
                     <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Tag className="w-4 h-4 text-gray-500" />

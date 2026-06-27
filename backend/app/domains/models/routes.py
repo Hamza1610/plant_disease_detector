@@ -1,6 +1,6 @@
 import json
 import shutil
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 from sqlalchemy.orm import Session
 
@@ -129,6 +129,8 @@ async def upload_model(
     class_names: str = Form("[]"),
     tags: str = Form("[]"),
     framework: str = Form("pytorch"),
+    config_file: Optional[UploadFile] = File(None),
+    config_json: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
 ):
@@ -140,8 +142,56 @@ async def upload_model(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+    # --- CONFIG PARSING ---
+    config_data = {}
+    if config_file:
+        try:
+            content = await config_file.read()
+            config_data = json.loads(content.decode("utf-8"))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid config.json file: {str(e)}")
+    elif config_json:
+        try:
+            config_data = json.loads(config_json)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid config_json string: {str(e)}")
+
+    if config_data:
+        extracted_classes = []
+        if "class_names" in config_data:
+            extracted_classes = config_data["class_names"]
+        elif "output_classes" in config_data:
+            extracted_classes = config_data["output_classes"]
+        elif "id2label" in config_data:
+            id2label = config_data["id2label"]
+            if isinstance(id2label, dict):
+                extracted_classes = [id2label[str(i)] for i in range(len(id2label)) if str(i) in id2label]
+            elif isinstance(id2label, list):
+                extracted_classes = id2label
+        
+        if extracted_classes and (not class_names or class_names == "[]"):
+            class_names = json.dumps(extracted_classes)
+
+    try:
+        parsed_classes = json.loads(class_names)
+    except Exception:
+        parsed_classes = [c.strip() for c in class_names.split(",") if c.strip()]
+
+    try:
+        parsed_tags = json.loads(tags)
+    except Exception:
+        parsed_tags = [t.strip() for t in tags.split(",") if t.strip()]
+
+    if not config_data:
+        config_data = {}
+    config_data.setdefault("model_id", model_id)
+    config_data.setdefault("name", name)
+    config_data.setdefault("description", description)
+    config_data.setdefault("framework", framework)
+    config_data["class_names"] = parsed_classes
+    config_data["tags"] = parsed_tags
+
     # --- AUTOMATED VALIDATION GATE ---
-    parsed_classes = json.loads(class_names)
     test_results = await validation_service.run_smoke_test(str(file_path), framework, parsed_classes)
     
     if not test_results["is_success"]:
@@ -159,13 +209,14 @@ async def upload_model(
         "name": name,
         "description": description,
         "artifact_path": str(file_path),
-        "output_classes": class_names,
-        "tags": tags,
+        "output_classes": json.dumps(parsed_classes),
+        "tags": json.dumps(parsed_tags),
         "framework": framework,
         "status": "active",
         "benchmark_summary": test_results.get("benchmark", {}),
         "is_verified": test_results["is_success"],
-        "verification_logs": test_results["logs"]
+        "verification_logs": test_results["logs"],
+        "metadata_json": config_data
     })
 
     # 4. Save Real Benchmark Measurements

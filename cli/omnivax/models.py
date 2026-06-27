@@ -1,6 +1,8 @@
+import json
 import typer
 import httpx
 from pathlib import Path
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from .config import load_config, get_auth_headers
@@ -58,12 +60,15 @@ def info(model_id: str):
 
 @app.command()
 def push(
-    file: Path = typer.Option(..., "--file", "-f", help="Path to the model weights file (.h5, .pth)"),
-    model_id: str = typer.Option(..., "--id", help="Unique ID for the model"),
-    name: str = typer.Option(..., "--name", help="Display name for the model"),
+    file: Optional[Path] = typer.Option(None, "--file", "-f", help="Path to the model weights file (.h5, .pth)"),
+    model_id: Optional[str] = typer.Option(None, "--id", help="Unique ID for the model"),
+    name: Optional[str] = typer.Option(None, "--name", help="Display name for the model"),
     description: str = typer.Option("", "--desc", help="Brief description"),
     classes: str = typer.Option("[]", "--classes", help="JSON list of class names"),
     tags: str = typer.Option("[]", "--tags", help="JSON list of tags"),
+    config_option: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config.json file OR raw JSON string"),
+    directory: Optional[Path] = typer.Option(None, "--dir", "-d", help="Directory containing model file and config.json"),
+    framework: str = typer.Option("pytorch", "--framework", help="Framework target (pytorch, keras, sklearn)"),
 ):
     """
     Upload and register a new model to the Omnivax Cloud.
@@ -75,6 +80,78 @@ def push(
     headers = get_auth_headers(config)
     if not headers:
         console.print("[red]Error:[/red] You must be authenticated to push models.")
+        return
+
+    # Handle directory scanning
+    if directory:
+        if not directory.exists() or not directory.is_dir():
+            console.print(f"[red]Error:[/red] Directory '{directory}' not found or is not a directory.")
+            return
+        
+        # Look for config.json
+        config_file_path = directory / "config.json"
+        if config_file_path.exists():
+            config_option = str(config_file_path)
+            
+        # Look for weights file
+        weights_extensions = [".pth", ".pt", ".h5", ".pkl", ".joblib"]
+        found_weights = []
+        for ext in weights_extensions:
+            found_weights.extend(list(directory.glob(f"*{ext}")))
+            
+        if found_weights:
+            file = found_weights[0]
+            console.print(f"[dim]Auto-detected weights file: {file.name}[/dim]")
+        else:
+            console.print(f"[red]Error:[/red] No weights file (.pth, .h5, .pkl) found in directory '{directory}'.")
+            return
+
+    # Parse config payload if provided
+    config_dict = {}
+    if config_option:
+        config_path = Path(config_option)
+        if config_path.is_file():
+            try:
+                with open(config_path, "r", encoding="utf-8") as cf:
+                    config_dict = json.load(cf)
+            except Exception as e:
+                console.print(f"[red]Error reading config file:[/red] {str(e)}")
+                return
+        else:
+            try:
+                config_dict = json.loads(config_option)
+            except Exception as e:
+                console.print(f"[red]Error parsing config string as JSON:[/red] {str(e)}")
+                return
+
+    # Extract/infer values from config
+    if config_dict:
+        if not model_id:
+            model_id = config_dict.get("model_id") or config_dict.get("id")
+        if not name:
+            name = config_dict.get("name")
+        if not description:
+            description = config_dict.get("description", "")
+        if classes == "[]":
+            class_list = config_dict.get("class_names") or config_dict.get("output_classes") or []
+            if isinstance(class_list, list):
+                classes = json.dumps(class_list)
+        if tags == "[]":
+            tag_list = config_dict.get("tags") or []
+            if isinstance(tag_list, list):
+                tags = json.dumps(tag_list)
+        if framework == "pytorch":
+            framework = config_dict.get("framework") or "pytorch"
+
+    # Post-parse validation
+    if not file:
+        console.print("[red]Error:[/red] Weights file must be specified (via --file or automatically found in --dir).")
+        return
+    if not model_id:
+        console.print("[red]Error:[/red] Unique model ID (--id) is required.")
+        return
+    if not name:
+        console.print("[red]Error:[/red] Model name (--name) is required.")
         return
 
     if not file.exists():
@@ -90,8 +167,11 @@ def push(
                     "name": name,
                     "description": description,
                     "class_names": classes,
-                    "tags": tags
+                    "tags": tags,
+                    "framework": framework,
                 }
+                if config_dict:
+                    data["config_json"] = json.dumps(config_dict)
                 
                 response = httpx.post(
                     f"{config.api_url}/models/upload",
