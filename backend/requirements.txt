@@ -22,3 +22,5 @@ h5py
 requests
 tensorflow
 tf-keras
+celery
+redis
