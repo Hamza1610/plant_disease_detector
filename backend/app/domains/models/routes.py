@@ -9,12 +9,23 @@ from app.db import models
 from app.db.models import UserRole
 from app.domains.auth.services import require_role
 from app.domains.models.repository import ModelRepository
-from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest
 from app.core.settings import settings
+from pathlib import Path
 
 from app.domains.models.hub import hub_service
 from app.domains.models.adapter import validation_service
-from app.schemas.models import ModelDetail, ModelSummary, RegisterModelRequest, PullModelRequest, ProbeModelRequest
+from app.schemas.models import (
+    ModelDetail,
+    ModelSummary,
+    RegisterModelRequest,
+    PullModelRequest,
+    ProbeModelRequest,
+    HubDeploymentItem,
+    BatchHubDeploymentRequest,
+    HubDeploymentResponse,
+    BatchHubDeploymentResponse
+)
+from app.domains.models.tasks import deploy_model_from_hub
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -122,7 +133,8 @@ async def probe_uploaded_file(
 
 @router.post("/upload", response_model=ModelDetail)
 async def upload_model(
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    remote_path: Optional[str] = Form(None),
     model_id: str = Form(...),
     name: str = Form(...),
     description: str = Form(""),
@@ -138,9 +150,16 @@ async def upload_model(
     artifacts_dir = settings.models_artifacts_dir
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     
-    file_path = artifacts_dir / file.filename
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    if file:
+        file_path = artifacts_dir / file.filename
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    elif remote_path:
+        file_path = Path(remote_path)
+        if not file_path.exists():
+            raise HTTPException(status_code=400, detail=f"Remote path '{remote_path}' not found on server.")
+    else:
+        raise HTTPException(status_code=400, detail="Either file or remote_path must be provided.")
     
     # --- CONFIG PARSING ---
     config_data = {}
@@ -258,3 +277,120 @@ def register_model(
         "benchmark_summary": request.benchmark_summary
     })
     return _to_detail(db_model)
+
+@router.post("/deploy-hub", response_model=HubDeploymentResponse)
+def deploy_hub_model(
+    item: HubDeploymentItem,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    repo = ModelRepository(db)
+    
+    # Check if ID already exists
+    if repo.get_by_id(item.model_id):
+        raise HTTPException(status_code=400, detail=f"Model ID '{item.model_id}' is already registered.")
+        
+    # Pre-register in DB with "downloading" status
+    db_model = repo.create({
+        "id": item.model_id,
+        "owner_id": current_user.id,
+        "name": item.name,
+        "description": item.description or "",
+        "artifact_path": "",
+        "output_classes": item.class_names or [],
+        "tags": item.tags or [],
+        "framework": item.framework or "pytorch",
+        "status": "downloading",
+        "is_verified": False,
+        "verification_logs": "Deployment scheduled in Celery worker queue...",
+        "metadata_json": {
+            "model_id": item.model_id,
+            "name": item.name,
+            "description": item.description or "",
+            "class_names": item.class_names or [],
+            "tags": item.tags or [],
+            "framework": item.framework or "pytorch"
+        }
+    })
+    
+    # Dispatch task to Celery
+    task = deploy_model_from_hub.delay(
+        model_id=item.model_id,
+        source=item.source,
+        repo_id=item.repo_id,
+        filename=item.filename,
+        framework=item.framework or "pytorch",
+        class_names_json=json.dumps(item.class_names or []),
+        tags_json=json.dumps(item.tags or [])
+    )
+    
+    return {
+        "model_id": db_model.id,
+        "name": db_model.name,
+        "status": db_model.status,
+        "task_id": task.id
+    }
+
+@router.post("/batch-hub", response_model=BatchHubDeploymentResponse)
+def batch_deploy_hub_models(
+    request: BatchHubDeploymentRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    results = []
+    repo = ModelRepository(db)
+    
+    for item in request.items:
+        # Check if ID already exists
+        if repo.get_by_id(item.model_id):
+            results.append({
+                "model_id": item.model_id,
+                "name": item.name,
+                "status": "failed",
+                "task_id": ""
+            })
+            continue
+            
+        # Pre-register in DB with "downloading" status
+        db_model = repo.create({
+            "id": item.model_id,
+            "owner_id": current_user.id,
+            "name": item.name,
+            "description": item.description or "",
+            "artifact_path": "",
+            "output_classes": item.class_names or [],
+            "tags": item.tags or [],
+            "framework": item.framework or "pytorch",
+            "status": "downloading",
+            "is_verified": False,
+            "verification_logs": "Deployment scheduled in Celery worker queue...",
+            "metadata_json": {
+                "model_id": item.model_id,
+                "name": item.name,
+                "description": item.description or "",
+                "class_names": item.class_names or [],
+                "tags": item.tags or [],
+                "framework": item.framework or "pytorch"
+            }
+        })
+        
+        # Dispatch task to Celery
+        task = deploy_model_from_hub.delay(
+            model_id=item.model_id,
+            source=item.source,
+            repo_id=item.repo_id,
+            filename=item.filename,
+            framework=item.framework or "pytorch",
+            class_names_json=json.dumps(item.class_names or []),
+            tags_json=json.dumps(item.tags or [])
+        )
+        
+        results.append({
+            "model_id": db_model.id,
+            "name": db_model.name,
+            "status": db_model.status,
+            "task_id": task.id
+        })
+        
+    return {"registered_models": results}
+

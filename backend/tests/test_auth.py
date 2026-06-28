@@ -1,6 +1,5 @@
-import pytest
 from app.db import models
-from app.api.auth import get_current_user
+from app.domains.auth.services import get_current_user
 
 def test_api_key_generation(client, db):
     # 1. Create a dummy user
@@ -30,7 +29,7 @@ def test_api_key_authentication(client, db):
     db.add(user)
     db.commit()
     
-    from app.api.auth import hash_api_key
+    from app.domains.auth.services import hash_api_key
     raw_key = "omni_test123"
     db_key = models.ApiKey(
         user_id=user.id,

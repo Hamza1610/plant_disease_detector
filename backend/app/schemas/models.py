@@ -52,3 +52,27 @@ class PullModelRequest(BaseModel):
 class ProbeModelRequest(BaseModel):
     file_path: str
     framework: str
+
+class HubDeploymentItem(BaseModel):
+    source: str  # "huggingface", "kaggle"
+    repo_id: str
+    model_id: str
+    name: str
+    filename: str | None = None
+    description: str | None = ""
+    class_names: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    framework: str | None = "pytorch"
+
+class BatchHubDeploymentRequest(BaseModel):
+    items: list[HubDeploymentItem]
+
+class HubDeploymentResponse(BaseModel):
+    model_id: str
+    name: str
+    status: str
+    task_id: str
+
+class BatchHubDeploymentResponse(BaseModel):
+    registered_models: list[HubDeploymentResponse]
+
