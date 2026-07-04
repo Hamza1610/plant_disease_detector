@@ -1,6 +1,7 @@
 {
-  "name": "frontend",
+  "name": "omnivax-frontend",
   "version": "0.1.0",
+  "description": "Omnivax is an enterprise-grade, model-first plant disease AI platform featuring a searchable model catalog, real-time prediction APIs, asynchronous hub deployments, and automated benchmark verification.",
   "private": true,
   "scripts": {
     "dev": "next dev",

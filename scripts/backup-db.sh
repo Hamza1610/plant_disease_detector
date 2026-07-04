@@ -1,7 +1,7 @@
 #!/bin/bash
 # Configuration
 BACKUP_DIR="/home/ubuntu/backups"
-DATA_DIR="/home/ubuntu/plant_disease_detector/data"
+DATA_DIR="/home/ubuntu/omnivax/data"
 DB_NAME="plant_disease.db"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
