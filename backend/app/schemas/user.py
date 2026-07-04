@@ -27,3 +27,21 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+class CredentialSetRequest(BaseModel):
+    source: str # 'huggingface' or 'kaggle'
+    token: Optional[str] = None
+    username: Optional[str] = None
+    key: Optional[str] = None
+
+class CredentialResponse(BaseModel):
+    source: str
+    is_valid: bool
+    token_masked: str
+    username: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     GEMINI_API_KEY: str
     REDIS_URL: str = "redis://localhost:6379/0"
+    ENCRYPTION_KEY: str = "u0ypv5ND2miq3tUlyfPSRoEHVhOgkPYbz9NhneGp254="
+
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000", 
         "http://127.0.0.1:3000", 

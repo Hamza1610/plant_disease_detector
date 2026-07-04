@@ -122,3 +122,17 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
+
+class UserCredential(Base):
+    __tablename__ = "user_credentials"
+
+    id = Column(String, primary_key=True, index=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    source = Column(String, nullable=False) # 'huggingface' or 'kaggle'
+    encrypted_token = Column(String, nullable=False)
+    is_valid = Column(Boolean, default=True)
+    metadata_json = Column(String, nullable=True) # stores kaggle username, etc.
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", backref="credentials")

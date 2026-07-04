@@ -1,15 +1,3 @@
-Metadata-Version: 2.4
-Name: omnivax
-Version: 2.0.0
-Summary: Enterprise AI diagnostics for global plant health
-Requires-Python: >=3.9
-Description-Content-Type: text/markdown
-Requires-Dist: typer[all]>=0.9.0
-Requires-Dist: rich>=13.0.0
-Requires-Dist: httpx>=0.24.0
-Requires-Dist: pydantic>=2.0.0
-Requires-Dist: supabase>=1.0.0
-
 # Omnivax CLI Documentation
 
 The `omnivax` command-line utility provides developers with the tools to manage authentication, register and check models, push local weights and configs, and execute batch deployments from model hubs.
@@ -80,6 +68,36 @@ omnivax auth keys list
 Permanently delete an API key by its unique ID:
 ```bash
 omnivax auth keys revoke <KEY_ID>
+```
+
+---
+
+## 🔑 External Model Hub Credentials
+
+Securely configure your API tokens and keys for Hugging Face and Kaggle. Stored credentials are encrypted on the backend and dynamically injected into Celery worker tasks during hub downloads.
+
+### Set Credentials
+Configure or update your credentials:
+```bash
+omnivax auth credentials set --source huggingface
+```
+*Optional parameters:*
+* `-s, --source <huggingface|kaggle>`: Specify the platform.
+* `-t, --token <TOKEN>`: Pass the Hugging Face access token directly (will prompt securely if omitted).
+* `-u, --username <USERNAME>`: Pass the Kaggle username (required for Kaggle).
+* `-k, --key <KEY>`: Pass the Kaggle API key (will prompt securely if omitted, required for Kaggle).
+
+### List Credentials
+View the status of your configured model hub credentials:
+```bash
+omnivax auth credentials list
+```
+*Note: Tokens and API keys are masked for security.*
+
+### Delete Credentials
+Revoke and delete the stored credentials for a platform:
+```bash
+omnivax auth credentials delete <huggingface|kaggle>
 ```
 
 ---

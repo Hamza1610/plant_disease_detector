@@ -321,7 +321,8 @@ def deploy_hub_model(
         filename=item.filename,
         framework=item.framework or "pytorch",
         class_names_json=json.dumps(item.class_names or []),
-        tags_json=json.dumps(item.tags or [])
+        tags_json=json.dumps(item.tags or []),
+        user_id=current_user.id
     )
     
     return {
@@ -382,7 +383,8 @@ def batch_deploy_hub_models(
             filename=item.filename,
             framework=item.framework or "pytorch",
             class_names_json=json.dumps(item.class_names or []),
-            tags_json=json.dumps(item.tags or [])
+            tags_json=json.dumps(item.tags or []),
+            user_id=current_user.id
         )
         
         results.append({

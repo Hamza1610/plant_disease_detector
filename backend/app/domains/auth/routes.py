@@ -170,3 +170,136 @@ def delete_account(
     db.commit()
     
     return {"message": "Account fully deleted"}
+
+# Credentials Management Routes
+@router.post("/credentials", response_model=user_schema.CredentialResponse)
+def set_credentials(
+    req: user_schema.CredentialSetRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    from app.infrastructure.crypt import encrypt_secret
+    from app.domains.auth.credentials_verification import validate_huggingface_token, validate_kaggle_keys
+    from app.db.models import UserCredential
+    import json
+
+    source = req.source.lower()
+    if source not in ["huggingface", "kaggle"]:
+        raise HTTPException(status_code=400, detail="Unsupported credentials source. Must be 'huggingface' or 'kaggle'")
+
+    # 1. Validation
+    if source == "huggingface":
+        if not req.token:
+            raise HTTPException(status_code=400, detail="Token is required for Hugging Face credentials")
+        if not validate_huggingface_token(req.token):
+            raise HTTPException(status_code=400, detail="Invalid Hugging Face token")
+        
+        encrypted_val = encrypt_secret(req.token)
+        metadata = None
+        masked = req.token[:6] + "..." + req.token[-4:] if len(req.token) > 10 else "****"
+        username_val = None
+    else: # kaggle
+        if not req.username or not req.key:
+            raise HTTPException(status_code=400, detail="Both username and key are required for Kaggle credentials")
+        if not validate_kaggle_keys(req.username, req.key):
+            raise HTTPException(status_code=400, detail="Invalid Kaggle credentials")
+        
+        encrypted_val = encrypt_secret(req.key)
+        metadata = json.dumps({"username": req.username})
+        masked = req.key[:4] + "..." + req.key[-4:] if len(req.key) > 8 else "****"
+        username_val = req.username
+
+    # 2. Database upsert
+    cred = db.query(UserCredential).filter(
+        UserCredential.user_id == current_user.id,
+        UserCredential.source == source
+    ).first()
+
+    if cred:
+        cred.encrypted_token = encrypted_val
+        cred.is_valid = True
+        cred.metadata_json = metadata
+    else:
+        cred = UserCredential(
+            user_id=current_user.id,
+            source=source,
+            encrypted_token=encrypted_val,
+            is_valid=True,
+            metadata_json=metadata
+        )
+        db.add(cred)
+
+    db.commit()
+    db.refresh(cred)
+
+    return {
+        "source": cred.source,
+        "is_valid": cred.is_valid,
+        "token_masked": masked,
+        "username": username_val,
+        "created_at": cred.created_at,
+        "updated_at": cred.updated_at
+    }
+
+@router.get("/credentials", response_model=list[user_schema.CredentialResponse])
+def get_credentials(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    from app.infrastructure.crypt import decrypt_secret
+    from app.db.models import UserCredential
+    import json
+
+    creds = db.query(UserCredential).filter(UserCredential.user_id == current_user.id).all()
+    results = []
+    for c in creds:
+        try:
+            decrypted = decrypt_secret(c.encrypted_token)
+        except Exception:
+            decrypted = ""
+
+        # Masking
+        if c.source == "huggingface":
+            masked = decrypted[:6] + "..." + decrypted[-4:] if len(decrypted) > 10 else "****"
+            username_val = None
+        else:
+            masked = decrypted[:4] + "..." + decrypted[-4:] if len(decrypted) > 8 else "****"
+            username_val = None
+            if c.metadata_json:
+                try:
+                    meta = json.loads(c.metadata_json)
+                    username_val = meta.get("username")
+                except Exception:
+                    pass
+
+        results.append({
+            "source": c.source,
+            "is_valid": c.is_valid,
+            "token_masked": masked,
+            "username": username_val,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at
+        })
+    return results
+
+@router.delete("/credentials/{source}", response_model=dict)
+def delete_credentials(
+    source: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    from app.db.models import UserCredential
+
+    source_val = source.lower()
+    cred = db.query(UserCredential).filter(
+        UserCredential.user_id == current_user.id,
+        UserCredential.source == source_val
+    ).first()
+
+    if not cred:
+        raise HTTPException(status_code=404, detail=f"No credentials found for source '{source_val}'")
+
+    db.delete(cred)
+    db.commit()
+    return {"message": f"Credentials for '{source_val}' successfully deleted"}
+

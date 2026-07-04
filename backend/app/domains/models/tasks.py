@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import asyncio
@@ -9,7 +10,9 @@ from app.infrastructure.database import SessionLocal
 from app.domains.models.repository import ModelRepository
 from app.domains.models.adapter import validation_service
 from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub.errors import HfHubHTTPError
 import kagglehub
+from kagglehub.exceptions import UnauthenticatedError
 
 logger = logging.getLogger("celery.tasks")
 
@@ -21,7 +24,8 @@ def deploy_model_from_hub(
     filename: Optional[str] = None,
     framework: str = "pytorch",
     class_names_json: str = "[]",
-    tags_json: str = "[]"
+    tags_json: str = "[]",
+    user_id: Optional[str] = None
 ):
     """
     Background worker task to download model from Hugging Face or Kaggle,
@@ -55,6 +59,32 @@ def deploy_model_from_hub(
         local_dir.mkdir(parents=True, exist_ok=True)
         
         # 3. Pull weights
+        from app.db.models import UserCredential
+        from app.infrastructure.crypt import decrypt_secret
+
+        hf_token = None
+        kaggle_username = None
+        kaggle_key = None
+
+        if user_id:
+            cred = db.query(UserCredential).filter(
+                UserCredential.user_id == user_id,
+                UserCredential.source == source,
+                UserCredential.is_valid == True
+            ).first()
+            if cred:
+                try:
+                    decrypted = decrypt_secret(cred.encrypted_token)
+                    if source == "huggingface":
+                        hf_token = decrypted
+                    elif source == "kaggle":
+                        kaggle_key = decrypted
+                        if cred.metadata_json:
+                            meta = json.loads(cred.metadata_json)
+                            kaggle_username = meta.get("username")
+                except Exception as ce:
+                    logger.error(f"Failed to decrypt credentials for user {user_id}: {ce}")
+
         main_file_path = None
         if repo_id.startswith("mock/"):
             logger.info(f"Using mock repository handler for: {repo_id}")
@@ -75,26 +105,45 @@ def deploy_model_from_hub(
         elif source == "huggingface":
             if filename:
                 logger.info(f"Downloading file '{filename}' from HF repo: {repo_id}")
-                local_file = hf_hub_download(repo_id=repo_id, filename=filename, local_dir=local_dir)
+                local_file = hf_hub_download(repo_id=repo_id, filename=filename, local_dir=local_dir, token=hf_token)
                 main_file_path = Path(local_file)
             else:
                 logger.info(f"Downloading complete snapshot from HF repo: {repo_id}")
                 snapshot_dir = snapshot_download(
                     repo_id=repo_id,
                     local_dir=local_dir,
-                    allow_patterns=["*.pth", "*.pt", "*.h5", "*.pkl", "config.json"]
+                    allow_patterns=["*.pth", "*.pt", "*.h5", "*.pkl", "config.json"],
+                    token=hf_token
                 )
                 main_file_path = Path(snapshot_dir)
         elif source == "kaggle":
             logger.info(f"Downloading model from Kaggle: {repo_id}")
-            if filename:
-                local_file = kagglehub.model_download(repo_id, path=filename)
-                main_file_path = Path(local_file)
-            else:
-                download_dir = kagglehub.model_download(repo_id)
-                main_file_path = Path(download_dir)
+            old_user = os.environ.get("KAGGLE_USERNAME")
+            old_key = os.environ.get("KAGGLE_KEY")
+            try:
+                if kaggle_username and kaggle_key:
+                    os.environ["KAGGLE_USERNAME"] = kaggle_username
+                    os.environ["KAGGLE_KEY"] = kaggle_key
+                
+                if filename:
+                    local_file = kagglehub.model_download(repo_id, path=filename)
+                    main_file_path = Path(local_file)
+                else:
+                    download_dir = kagglehub.model_download(repo_id)
+                    main_file_path = Path(download_dir)
+            finally:
+                if kaggle_username and kaggle_key:
+                    if old_user is not None:
+                        os.environ["KAGGLE_USERNAME"] = old_user
+                    else:
+                        os.environ.pop("KAGGLE_USERNAME", None)
+                    if old_key is not None:
+                        os.environ["KAGGLE_KEY"] = old_key
+                    else:
+                        os.environ.pop("KAGGLE_KEY", None)
         else:
             raise ValueError(f"Unsupported model hub source: {source}")
+
 
         # If downloaded path is a directory, resolve the main weights file
         if main_file_path.is_dir():
@@ -172,6 +221,31 @@ def deploy_model_from_hub(
                 "is_verified": False,
                 "verification_logs": test_results.get("logs", "Validation check failed.")
             })
+            
+    except (HfHubHTTPError, UnauthenticatedError) as auth_err:
+        logger.warning(f"Authentication exception during hub download: {auth_err}")
+        if user_id:
+            try:
+                from app.db.models import UserCredential
+                cred_to_disable = db.query(UserCredential).filter(
+                    UserCredential.user_id == user_id,
+                    UserCredential.source == source
+                ).first()
+                if cred_to_disable:
+                    cred_to_disable.is_valid = False
+                    db.commit()
+                    logger.info(f"Flagged invalid credentials in DB for user {user_id}, source {source}")
+            except Exception as db_ex:
+                logger.error(f"Failed to invalidate credentials in DB: {db_ex}")
+        
+        try:
+            repo.update(model_id, {
+                "status": "failed",
+                "is_verified": False,
+                "verification_logs": f"AUTHENTICATION FAILURE: The provided {source} token or credentials are invalid or have expired."
+            })
+        except Exception as db_ex:
+            logger.error(f"Failed to write auth failure logs to database: {db_ex}")
             
     except Exception as e:
         logger.exception(f"Exception raised during background model deployment: {e}")

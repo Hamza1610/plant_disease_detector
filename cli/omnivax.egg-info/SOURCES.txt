@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 omnivax/__init__.py
 omnivax/auth.py

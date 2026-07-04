@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "omnivax"
 version = "2.0.0"
-description = "Enterprise AI diagnostics for global plant health"
+description = "Omnivax is an enterprise-grade, model-first plant disease AI platform featuring a searchable model catalog, real-time prediction APIs, asynchronous hub deployments, and automated benchmark verification."
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [

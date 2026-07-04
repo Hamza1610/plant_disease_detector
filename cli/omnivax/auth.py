@@ -130,3 +130,7 @@ def revoke_key(key_id: str = typer.Argument(..., help="The ID (or prefix) of the
         console.print("[green]Key revoked successfully.[/green]")
     except Exception as e:
         console.print(f"[red]Failed to revoke key:[/red] {str(e)}")
+
+from .credentials import app as credentials_app
+app.add_typer(credentials_app, name="credentials")
+
