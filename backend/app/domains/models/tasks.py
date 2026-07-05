@@ -120,11 +120,18 @@ def deploy_model_from_hub(
             logger.info(f"Downloading model from Kaggle: {repo_id}")
             old_user = os.environ.get("KAGGLE_USERNAME")
             old_key = os.environ.get("KAGGLE_KEY")
+            old_token = os.environ.get("KAGGLE_API_TOKEN")
             try:
                 if kaggle_username and kaggle_key:
                     os.environ["KAGGLE_USERNAME"] = kaggle_username
                     os.environ["KAGGLE_KEY"] = kaggle_key
+                    os.environ["KAGGLE_API_TOKEN"] = kaggle_key
                 
+                # Reload kagglehub to pick up task-level credentials
+                import importlib
+                import kagglehub
+                importlib.reload(kagglehub)
+
                 if filename:
                     local_file = kagglehub.model_download(repo_id, path=filename)
                     main_file_path = Path(local_file)
@@ -141,6 +148,10 @@ def deploy_model_from_hub(
                         os.environ["KAGGLE_KEY"] = old_key
                     else:
                         os.environ.pop("KAGGLE_KEY", None)
+                    if old_token is not None:
+                        os.environ["KAGGLE_API_TOKEN"] = old_token
+                    else:
+                        os.environ.pop("KAGGLE_API_TOKEN", None)
         else:
             raise ValueError(f"Unsupported model hub source: {source}")
 

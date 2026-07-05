@@ -11,12 +11,57 @@ services:
       - LETSENCRYPT_HOST=${DOMAIN_NAME}.sslip.io
       - LETSENCRYPT_EMAIL=${SSL_EMAIL}
       - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=sqlite:////app/data/plant_disease.db
+      - DATABASE_URL=${DATABASE_URL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - REDIS_URL=redis://redis:6379/0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
       - ./data:/app/data
+      - ./models:/app/models
+      - ./benchmarks:/app/benchmarks
+    ports:
+      - "8000:8000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - omnivax-network
+    depends_on:
+      - redis
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: omnivax-celery-worker
+    command: celery -A app.core.celery_app worker --loglevel=info
+    restart: always
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - REDIS_URL=redis://redis:6379/0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./benchmarks:/app/benchmarks
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - omnivax-network
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: omnivax-redis
+    restart: always
     networks:
       - omnivax-network
 
