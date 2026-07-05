@@ -3,6 +3,7 @@ pyproject.toml
 omnivax/__init__.py
 omnivax/auth.py
 omnivax/config.py
+omnivax/credentials.py
 omnivax/main.py
 omnivax/models.py
 omnivax/run.py
