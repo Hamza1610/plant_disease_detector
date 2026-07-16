@@ -77,12 +77,19 @@ class ModelValidationService:
         
         try:
             logs.append(f"Starting smoke test and performance profiling for {framework} model...")
-            
-            adapter = None
-            if framework == "keras":
-                adapter = KerasH5Adapter(file_path, {"class_names": expected_classes})
-            elif framework == "sklearn":
-                adapter = SklearnPickleAdapter(file_path, {"class_names": expected_classes})
+            # Resolve local config.json if present
+            model_meta = {"class_names": expected_classes, "framework": framework}
+            config_file = Path(file_path).parent / "config.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, "r") as f:
+                        config_data = json.load(f)
+                    model_meta.update(config_data)
+                except Exception as ex:
+                    logs.append(f"Could not parse config.json in artifact directory: {ex}")
+
+            from app.domains.inference.factory import AdapterFactory
+            adapter = AdapterFactory.create(framework, file_path, model_meta)
             
             if adapter:
                 # 1. Functional Verification

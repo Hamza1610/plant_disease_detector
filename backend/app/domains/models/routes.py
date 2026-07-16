@@ -23,7 +23,8 @@ from app.schemas.models import (
     HubDeploymentItem,
     BatchHubDeploymentRequest,
     HubDeploymentResponse,
-    BatchHubDeploymentResponse
+    BatchHubDeploymentResponse,
+    ModelConfig
 )
 from app.domains.models.tasks import deploy_model_from_hub
 
@@ -221,6 +222,9 @@ async def upload_model(
             detail=f"Verification Failed: {test_results['logs']}"
         )
 
+    # Map input spec if in config
+    input_spec_val = config_data.get("input_schema") or config_data.get("input_spec") or {}
+
     repo = ModelRepository(db)
     db_model = repo.create({
         "id": model_id,
@@ -228,6 +232,7 @@ async def upload_model(
         "name": name,
         "description": description,
         "artifact_path": str(file_path),
+        "input_spec": input_spec_val,
         "output_classes": json.dumps(parsed_classes),
         "tags": json.dumps(parsed_tags),
         "framework": framework,
@@ -277,6 +282,62 @@ def register_model(
         "benchmark_summary": request.benchmark_summary
     })
     return _to_detail(db_model)
+
+@router.post("/deploy-config", response_model=HubDeploymentResponse)
+def deploy_config_model(
+    config: ModelConfig,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_role([UserRole.DEVELOPER, UserRole.ENTERPRISE]))
+):
+    repo = ModelRepository(db)
+    
+    model_id = config.model_id
+    if not model_id:
+        model_id = repo.generate_model_id(config.name)
+        config.model_id = model_id
+        
+    if repo.get_by_id(model_id):
+        raise HTTPException(status_code=400, detail=f"Model ID '{model_id}' is already registered.")
+        
+    class_names = []
+    if config.output_schema.task_type == "classification" and config.output_schema.parameters.classification:
+        class_names = config.output_schema.parameters.classification.class_names
+    elif config.output_schema.task_type == "object_detection" and config.output_schema.parameters.object_detection:
+        class_names = config.output_schema.parameters.object_detection.class_names
+        
+    db_model = repo.create({
+        "id": model_id,
+        "owner_id": current_user.id,
+        "name": config.name,
+        "description": config.description or "",
+        "artifact_path": "",
+        "framework": config.framework,
+        "input_spec": config.input_schema.dict(),
+        "output_classes": class_names,
+        "tags": config.tags or [],
+        "status": "downloading",
+        "is_verified": False,
+        "verification_logs": "Deployment scheduled from config.json in Celery worker queue...",
+        "metadata_json": config.dict()
+    })
+    
+    task = deploy_model_from_hub.delay(
+        model_id=model_id,
+        source=config.model_source.hub,
+        repo_id=config.model_source.repo_id,
+        filename=config.model_source.filename,
+        framework=config.framework,
+        class_names_json=json.dumps(class_names),
+        tags_json=json.dumps(config.tags or []),
+        user_id=current_user.id
+    )
+    
+    return {
+        "model_id": db_model.id,
+        "name": db_model.name,
+        "status": db_model.status,
+        "task_id": task.id
+    }
 
 @router.post("/deploy-hub", response_model=HubDeploymentResponse)
 def deploy_hub_model(

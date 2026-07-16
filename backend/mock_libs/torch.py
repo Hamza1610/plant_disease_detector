@@ -37,6 +37,9 @@ def device(device_type):
 def load(file_path, map_location=None):
     return MagicMock()
 
+def from_numpy(arr):
+    return MagicMock()
+
 def no_grad():
     class NoGradContext:
         def __enter__(self): pass

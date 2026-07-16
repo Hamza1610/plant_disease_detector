@@ -76,3 +76,57 @@ class HubDeploymentResponse(BaseModel):
 class BatchHubDeploymentResponse(BaseModel):
     registered_models: list[HubDeploymentResponse]
 
+
+class ImageParams(BaseModel):
+    dimensions: list[int]
+    normalization: str = "none" # "imagenet", "rescale_only", "none"
+
+class AudioParams(BaseModel):
+    sample_rate: int = 16000
+    channels: int = 1
+    format: str = "wav"
+
+class TextParams(BaseModel):
+    max_length: int = 512
+
+class InputSchemaParams(BaseModel):
+    image: ImageParams | None = None
+    audio: AudioParams | None = None
+    text: TextParams | None = None
+
+class InputSchema(BaseModel):
+    modality: str # "image", "audio", "text", "tabular"
+    parameters: InputSchemaParams = Field(default_factory=InputSchemaParams)
+
+class ClassificationParams(BaseModel):
+    class_names: list[str] = Field(default_factory=list)
+
+class ObjectDetectionParams(BaseModel):
+    class_names: list[str] = Field(default_factory=list)
+    confidence_threshold: float = 0.5
+
+class OutputSchemaParams(BaseModel):
+    classification: ClassificationParams | None = None
+    object_detection: ObjectDetectionParams | None = None
+
+class OutputSchema(BaseModel):
+    task_type: str # "classification", "regression", "object_detection", "text_generation"
+    parameters: OutputSchemaParams = Field(default_factory=OutputSchemaParams)
+
+class ModelSource(BaseModel):
+    hub: str # "huggingface", "kaggle"
+    repo_id: str
+    filename: str | None = None
+
+class ModelConfig(BaseModel):
+    model_id: str | None = None
+    name: str
+    framework: str # "pytorch", "tensorflow", "sklearn", "onnx", "custom"
+    model_format: str # "safetensors", "savedmodel", "onnx", "pickle", "keras_h5"
+    model_source: ModelSource
+    input_schema: InputSchema
+    output_schema: OutputSchema
+    description: str | None = ""
+    tags: list[str] | None = Field(default_factory=list)
+
+

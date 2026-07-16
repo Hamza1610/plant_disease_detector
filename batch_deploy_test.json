@@ -1,0 +1,82 @@
+[
+  {
+    "model_id": "hf_agri_resnet",
+    "name": "HF Agri ResNet50",
+    "source": "huggingface",
+    "repo_id": "mesabo/agri-plant-disease-resnet50",
+    "framework": "pytorch",
+    "description": "Enterprise PyTorch ResNet50 for plant disease classification"
+  },
+  {
+    "model_id": "hf_mobilenet_v2",
+    "name": "HF MobileNetV2 Plant Disease",
+    "source": "huggingface",
+    "repo_id": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification",
+    "framework": "pytorch",
+    "description": "Lightweight PyTorch MobileNetV2 for plant disease identification"
+  },
+  {
+    "model_id": "hf_inception_resnet",
+    "name": "HF InceptionResNetV2 Plant Disease",
+    "source": "huggingface",
+    "repo_id": "kero2111/Plant_Disease",
+    "framework": "keras",
+    "description": "High-accuracy Keras InceptionResNetV2 model for general plant diseases"
+  },
+  {
+    "model_id": "hf_harimitra_tf",
+    "name": "HF Harimitra TensorFlow CNN",
+    "source": "huggingface",
+    "repo_id": "sudhir75/Harimitra",
+    "framework": "keras",
+    "description": "Custom TensorFlow CNN model for Crop Diagnostics"
+  },
+  {
+    "model_id": "hf_crop_vit",
+    "name": "HF Crop leaf diseases ViT",
+    "source": "huggingface",
+    "repo_id": "wambugu71/crop_leaf_diseases_vit",
+    "framework": "pytorch",
+    "description": "State-of-the-art Vision Transformer (ViT) for leaf disease diagnosis"
+  },
+  {
+    "model_id": "kaggle_plant_disease",
+    "name": "Kaggle MobileNetV2 TF",
+    "source": "kaggle",
+    "repo_id": "rishitdagli/plant-disease/TensorFlow2/plant-disease/1",
+    "framework": "keras",
+    "description": "MobileNetV2 fine-tuned on plant disease dataset from Kaggle"
+  },
+  {
+    "model_id": "kaggle_efficientnet_b0",
+    "name": "Kaggle EfficientNet-B0",
+    "source": "kaggle",
+    "repo_id": "tensorflow/efficientnet/TensorFlow2/b0-classification/1",
+    "framework": "keras",
+    "description": "EfficientNet-B0 image classification model from Kaggle"
+  },
+  {
+    "model_id": "kaggle_mobilenet_v2",
+    "name": "Kaggle Keras MobileNetV2",
+    "source": "kaggle",
+    "repo_id": "keras/mobilenetv2/keras/default/1",
+    "framework": "keras",
+    "description": "Standard MobileNetV2 default deployment from Kaggle"
+  },
+  {
+    "model_id": "kaggle_yolov8",
+    "name": "Kaggle YOLOv8 Plant",
+    "source": "kaggle",
+    "repo_id": "importantfacts/plant-disease-detection-yolov8-model/other/default/1",
+    "framework": "pytorch",
+    "description": "YOLOv8 custom object detector for plant disease patches"
+  },
+  {
+    "model_id": "kaggle_vit_fusion",
+    "name": "Kaggle ViT Fusion",
+    "source": "kaggle",
+    "repo_id": "afsagag/multimodal-plant-disease-classifier/other/default/1",
+    "framework": "pytorch",
+    "description": "Vision Transformer Fusion classifier from Kaggle"
+  }
+]

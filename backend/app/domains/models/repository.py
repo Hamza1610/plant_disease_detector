@@ -8,6 +8,23 @@ class ModelRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def generate_model_id(self, name: str) -> str:
+        """
+        Generates a unique model slug based on the display name.
+        Example: 'EfficientNet B0' -> 'efficientnet_b0_v1'
+        """
+        import re
+        slug = re.sub(r'[^a-zA-Z0-9\s-]', '', name).strip().lower()
+        slug = re.sub(r'[\s-]+', '_', slug)
+        
+        version = 1
+        proposed_id = f"{slug}_v{version}"
+        while self.get_by_id(proposed_id):
+            version += 1
+            proposed_id = f"{slug}_v{version}"
+        return proposed_id
+
+
     def get_by_id(self, model_id: str) -> Optional[Model]:
         return self.db.query(Model).filter(Model.id == model_id).first()
 

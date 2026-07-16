@@ -3,9 +3,10 @@ import typer
 import httpx
 import builtins
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from rich.console import Console
 from rich.table import Table
+from pydantic import BaseModel, Field
 from .config import load_config, get_auth_headers
 
 app = typer.Typer(help="Manage and interact with models.")
@@ -380,4 +381,107 @@ def batch_deploy(
             console.print("[green]All deployment tasks completed![/green]")
         except KeyboardInterrupt:
             console.print("\n[yellow]Watch stopped. Tasks continue executing on the server.[/yellow]")
+
+
+class ImageParamsCli(BaseModel):
+    dimensions: List[int]
+    normalization: str = "none"
+
+class AudioParamsCli(BaseModel):
+    sample_rate: int = 16000
+    channels: int = 1
+    format: str = "wav"
+
+class TextParamsCli(BaseModel):
+    max_length: int = 512
+
+class InputSchemaParamsCli(BaseModel):
+    image: ImageParamsCli | None = None
+    audio: AudioParamsCli | None = None
+    text: TextParamsCli | None = None
+
+class InputSchemaCli(BaseModel):
+    modality: str
+    parameters: InputSchemaParamsCli = Field(default_factory=InputSchemaParamsCli)
+
+class ClassificationParamsCli(BaseModel):
+    class_names: List[str] = Field(default_factory=builtins.list)
+
+class ObjectDetectionParamsCli(BaseModel):
+    class_names: List[str] = Field(default_factory=builtins.list)
+    confidence_threshold: float = 0.5
+
+class OutputSchemaParamsCli(BaseModel):
+    classification: ClassificationParamsCli | None = None
+    object_detection: ObjectDetectionParamsCli | None = None
+
+class OutputSchemaCli(BaseModel):
+    task_type: str
+    parameters: OutputSchemaParamsCli = Field(default_factory=OutputSchemaParamsCli)
+
+class ModelSourceCli(BaseModel):
+    hub: str
+    repo_id: str
+    filename: str | None = None
+
+class ModelConfigCli(BaseModel):
+    model_id: str | None = None
+    name: str
+    framework: str
+    model_format: str
+    model_source: ModelSourceCli
+    input_schema: InputSchemaCli
+    output_schema: OutputSchemaCli
+    description: str | None = ""
+    tags: List[str] | None = Field(default_factory=builtins.list)
+
+
+@app.command("register")
+def register(
+    config_file: Path = typer.Option(..., "--config", "-c", help="Path to config.json file")
+):
+    """Register and deploy a model using a declarative config.json file."""
+    config = load_config()
+    headers = get_auth_headers(config)
+    if not headers:
+        console.print("[red]Error:[/red] You must be authenticated to register models.")
+        return
+
+    if not config_file.exists() or not config_file.is_file():
+        console.print(f"[red]Error:[/red] Configuration file '{config_file}' not found.")
+        return
+
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            cfg_data = json.load(f)
+    except Exception as e:
+        console.print(f"[red]Error parsing JSON file:[/red] {str(e)}")
+        return
+
+    from pydantic import BaseModel
+    try:
+        validated_cfg = ModelConfigCli(**cfg_data)
+    except Exception as e:
+        console.print(f"[red]Client-side Validation Failed:[/red] {str(e)}")
+        return
+
+    with console.status(f"[bold green]Submitting declarative config for {validated_cfg.name}..."):
+        try:
+            response = httpx.post(
+                f"{config.api_url}/models/deploy-config",
+                json=validated_cfg.dict(),
+                headers=headers,
+                timeout=30.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            console.print(f"[green]Success![/green] Background deployment from config initiated.")
+            console.print(f"Model ID: [bold]{data.get('model_id')}[/bold]")
+            console.print(f"Status: [yellow]{data.get('status')}[/yellow]")
+            console.print(f"Task ID: {data.get('task_id')}")
+        except Exception as e:
+            console.print(f"[red]Registration failed:[/red] {str(e)}")
+            if hasattr(e, 'response') and e.response:
+                console.print(f"[dim]Server: {e.response.text}[/dim]")
+
 

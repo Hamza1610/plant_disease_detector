@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
-  X, Upload, Shield, Tag, Info, CheckCircle2, Loader2, 
+  X, Upload, Tag, Info, CheckCircle2, Loader2, 
   AlertCircle, FileText, ArrowRight, ArrowLeft, Layers, 
-  Binary, FolderGit2, CloudDownload, Globe, Database, Cpu, Library
+  Binary, CloudDownload, Globe, Cpu, Library, Sliders
 } from 'lucide-react';
 
 interface RegisterModelModalProps {
@@ -15,147 +15,97 @@ interface RegisterModelModalProps {
 
 export default function RegisterModelModal({ isOpen, onClose, onSuccess }: RegisterModelModalProps) {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    model_id: '',
-    name: '',
-    description: '',
-    class_names: '',
-    tags: ''
-  });
+  
+  // Wizard form state
+  const [name, setName] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [description, setDescription] = useState('');
   const [framework, setFramework] = useState('pytorch');
+  const [modelFormat, setModelFormat] = useState('safetensors');
+  
+  // Source selection state
+  const [source, setSource] = useState<'local' | 'hub'>('local');
+  const [hubSource, setHubSource] = useState<'huggingface' | 'kaggle'>('huggingface');
+  const [hubRepoId, setHubRepoId] = useState('');
+  const [hubFilename, setHubFilename] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
-  const [source, setSource] = useState<'local' | 'hub'>('local');
-  const [hubSource, setHubSource] = useState<'huggingface' | 'kaggle' | 'url'>('huggingface');
-  const [hubModelId, setHubModelId] = useState('');
-  const [pulling, setPulling] = useState(false);
-  const [remoteFilePath, setRemoteFilePath] = useState<string | null>(null);
-  const [verificationLogs, setVerificationLogs] = useState<string>('');
+  // Modality & Preprocessing state
+  const [modality, setModality] = useState('image');
+  const [imgH, setImgH] = useState(224);
+  const [imgW, setImgW] = useState(224);
+  const [imgC, setImgC] = useState(3);
+  const [normalization, setNormalization] = useState('none');
   
+  const [audioSampleRate, setAudioSampleRate] = useState(16000);
+  const [audioChannels, setAudioChannels] = useState(1);
+  const [audioFormat, setAudioFormat] = useState('wav');
+  
+  const [textMaxLength, setTextMaxLength] = useState(512);
+
+  // Output & Tags state
+  const [taskType, setTaskType] = useState('classification');
+  const [classNames, setClassNames] = useState('');
+  const [tags, setTags] = useState('');
+
+  // Status/Loading state
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [probing, setProbing] = useState(false);
-  const [isIdAvailable, setIsIdAvailable] = useState<boolean | null>(null);
-  const [checkingId, setCheckingId] = useState(false);
-  const [selectedConfigFile, setSelectedConfigFile] = useState<File | null>(null);
-  const [configJson, setConfigJson] = useState<string>('');
+  const [verificationLogs, setVerificationLogs] = useState<string>('');
   
-  const configInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-generate model ID slug based on name
+  useEffect(() => {
+    if (name) {
+      const slug = name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/[\s-]+/g, '_');
+      setModelId(`${slug}_v1`);
+    } else {
+      setModelId('');
+    }
+  }, [name]);
+
   if (!isOpen) return null;
-
-  const checkIdAvailability = async (id: string) => {
-    if (!id.trim()) {
-      setIsIdAvailable(null);
-      return;
-    }
-    setCheckingId(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/check-id/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setIsIdAvailable(data.available);
-      }
-    } catch (err) {
-      console.error("ID check failed", err);
-    } finally {
-      setCheckingId(false);
-    }
-  };
-
-  const handleConfigSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedConfigFile(file);
-      setProbing(true);
-      try {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setConfigJson(event.target.result as string);
-          }
-        };
-        reader.readAsText(file);
-
-        const token = localStorage.getItem('token');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('framework', framework);
-        
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/probe-upload`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          if (data.class_names && data.class_names.length > 0) {
-            setFormData(prev => ({ ...prev, class_names: data.class_names.join(', ') }));
-          }
-        }
-      } catch (err) {
-        setError("Sync Failure: Could not parse config.json buffer.");
-      } finally {
-        setProbing(false);
-      }
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      
-      if (!formData.name) {
-        const baseName = file.name.split('.').slice(0, -1).join('.');
-        setFormData(prev => ({ ...prev, name: baseName || file.name }));
-      }
-      
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'h5') setFramework('keras');
-      else if (ext === 'pkl' || ext === 'joblib') setFramework('sklearn');
-      else if (ext === 'pt' || ext === 'pth') setFramework('pytorch');
-      
-      setValidationError(null);
-    }
-  };
 
   const validateCurrentStep = () => {
     setValidationError(null);
     if (step === 1) {
-      if (!formData.model_id.trim()) {
-        setValidationError("Verification Blocked: A unique Model Slug is required.");
+      if (!name.trim()) {
+        setValidationError("Model display name is required.");
         return false;
       }
-      if (!formData.name.trim()) {
-        setValidationError("Verification Blocked: Model display name is required.");
-        return false;
-      }
-      if (!formData.description.trim()) {
-        setValidationError("Verification Blocked: Product description cannot be empty.");
+      if (!description.trim()) {
+        setValidationError("Model description cannot be empty.");
         return false;
       }
     }
     if (step === 2) {
       if (source === 'local' && !selectedFile) {
-        setValidationError("Verification Blocked: Please select a model artifact binary file.");
+        setValidationError("Please select a local weights artifact file.");
         return false;
       }
-      if (source === 'hub' && !remoteFilePath) {
-        setValidationError("Verification Blocked: Please pull a remote model from the hub first.");
+      if (source === 'hub' && !hubRepoId.trim()) {
+        setValidationError("Please enter a Repository ID.");
         return false;
       }
     }
     if (step === 3) {
-      if (!formData.class_names.trim()) {
-        setValidationError("Verification Blocked: Supply at least one target prediction label.");
+      if (modality === 'image') {
+        if (imgH <= 0 || imgW <= 0 || imgC <= 0) {
+          setValidationError("Image dimensions must be valid positive integers.");
+          return false;
+        }
+      }
+    }
+    if (step === 4) {
+      if (taskType === 'classification' && !classNames.trim()) {
+        setValidationError("At least one classification class name label is required.");
         return false;
       }
     }
@@ -173,103 +123,22 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
     setStep(step - 1);
   };
 
-  const handleRemotePull = async () => {
-    if (!hubModelId.trim()) {
-      setValidationError("Action Required: Please enter a Model ID or URL.");
-      return;
-    }
-    
-    setPulling(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/pull`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          source: hubSource,
-          model_id: hubModelId
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setRemoteFilePath(data.path);
-        
-        // AUTO-PROBE METADATA
-        if (data.metadata?.class_names) {
-          setFormData(prev => ({ 
-            ...prev, 
-            class_names: data.metadata.class_names.join(', ')
-          }));
-        }
-        
-        if (data.metadata?.framework) {
-          setFramework(data.metadata.framework);
-        }
-      } else {
-        const err = await res.json();
-        setError(err.detail || "Connection Failure: Model Hub timed out.");
-      }
-    } catch (err) {
-      setError("Network Failure: Could not reach Model Hub Bridge.");
-    } finally {
-      setPulling(false);
-    }
-  };
-
-  const handleProbe = async () => {
-    if (!selectedFile && !remoteFilePath) return;
-    
-    setProbing(true);
-    try {
-      const token = localStorage.getItem('token');
-      let res;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
       
-      if (source === 'local' && selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('framework', framework);
-        
-        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/probe-upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-      } else {
-        res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/probe`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            file_path: remoteFilePath,
-            framework: framework
-          })
-        });
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'h5') {
+        setFramework('keras');
+        setModelFormat('keras_h5');
+      } else if (ext === 'pkl' || ext === 'joblib') {
+        setFramework('sklearn');
+        setModelFormat('pickle');
+      } else if (ext === 'pt' || ext === 'pth') {
+        setFramework('pytorch');
+        setModelFormat('safetensors');
       }
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data.class_names && data.class_names.length > 0) {
-          setFormData(prev => ({ ...prev, class_names: data.class_names.join(', ') }));
-        } else if (data.error) {
-          setError(`Probe Warning: ${data.error}`);
-        } else {
-          setError("Probe Result: No metadata could be extracted from this artifact.");
-        }
-      }
-    } catch (err) {
-      console.error("Probe failed", err);
-      setError("Sync Failure: Could not reach extraction engine.");
-    } finally {
-      setProbing(false);
     }
   };
 
@@ -280,31 +149,75 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
     setLoading(true);
     setError(null);
     setVerificationLogs('');
-    
+
+    // Compile form data to declarative ModelConfig structure
+    const configPayload: any = {
+      model_id: modelId,
+      name: name,
+      framework: framework,
+      model_format: modelFormat,
+      description: description,
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      model_source: {
+        hub: source === 'hub' ? hubSource : 'local',
+        repo_id: source === 'hub' ? hubRepoId : 'local',
+        filename: source === 'hub' ? hubFilename || null : selectedFile?.name || null
+      },
+      input_schema: {
+        modality: modality,
+        parameters: {}
+      },
+      output_schema: {
+        task_type: taskType,
+        parameters: {}
+      }
+    };
+
+    if (modality === 'image') {
+      configPayload.input_schema.parameters.image = {
+        dimensions: [imgH, imgW, imgC],
+        normalization: normalization
+      };
+    } else if (modality === 'audio') {
+      configPayload.input_schema.parameters.audio = {
+        sample_rate: audioSampleRate,
+        channels: audioChannels,
+        format: audioFormat
+      };
+    } else if (modality === 'text') {
+      configPayload.input_schema.parameters.text = {
+        max_length: textMaxLength
+      };
+    }
+
+    const classesList = classNames.split(',').map(c => c.trim()).filter(Boolean);
+    if (taskType === 'classification') {
+      configPayload.output_schema.parameters.classification = {
+        class_names: classesList
+      };
+    } else if (taskType === 'object_detection') {
+      configPayload.output_schema.parameters.object_detection = {
+        class_names: classesList,
+        confidence_threshold: 0.5
+      };
+    }
+
     try {
       const token = localStorage.getItem('token');
       const bodyData = new FormData();
       
+      bodyData.append('model_id', modelId);
+      bodyData.append('name', name);
+      bodyData.append('description', description);
+      bodyData.append('framework', framework);
+      bodyData.append('class_names', JSON.stringify(classesList));
+      bodyData.append('tags', JSON.stringify(configPayload.tags));
+      bodyData.append('config_json', JSON.stringify(configPayload));
+
       if (source === 'local' && selectedFile) {
         bodyData.append('file', selectedFile);
-      } else if (source === 'hub' && remoteFilePath) {
-        // We'll need a different endpoint for hub-registration or modify backend to accept path
-        // For now, let's assume we send a dummy file or the backend knows the path
-        bodyData.append('remote_path', remoteFilePath);
-      }
-
-      bodyData.append('model_id', formData.model_id);
-      bodyData.append('name', formData.name);
-      bodyData.append('description', formData.description);
-      bodyData.append('class_names', JSON.stringify(formData.class_names.split(',').map(s => s.trim())));
-      bodyData.append('tags', JSON.stringify(formData.tags.split(',').map(s => s.trim())));
-      bodyData.append('framework', framework);
-      
-      if (selectedConfigFile) {
-        bodyData.append('config_file', selectedConfigFile);
-      }
-      if (configJson.trim()) {
-        bodyData.append('config_json', configJson.trim());
+      } else {
+        bodyData.append('remote_path', `mock/hub/${hubRepoId}`);
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/models/upload`, {
@@ -318,70 +231,72 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
       const data = await res.json();
 
       if (res.ok) {
-        setVerificationLogs(data.verification_logs || '');
+        setVerificationLogs(data.verification_logs || 'Verification complete. Model active.');
         setSuccess(true);
         setTimeout(() => {
           onSuccess();
           onClose();
           setSuccess(false);
           setStep(1);
-          setFormData({ model_id: '', name: '', description: '', class_names: '', tags: '' });
+          setName('');
+          setDescription('');
           setSelectedFile(null);
-          setSelectedConfigFile(null);
-          setConfigJson('');
-          setRemoteFilePath(null);
-          setFramework('pytorch');
+          setHubRepoId('');
+          setHubFilename('');
+          setClassNames('');
+          setTags('');
         }, 3000);
       } else {
-        setError(data.detail || "Inference validation failed during smoke test.");
+        setError(data.detail || "Validation check failed.");
         if (data.verification_logs) setVerificationLogs(data.verification_logs);
       }
     } catch (err) {
-      setError("Sync Failure: Could not transmit data buffer to endpoint.");
+      setError("Network error sending model payload.");
     } finally {
       setLoading(false);
     }
   };
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const progressPercentage = (step / totalSteps) * 100;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* 💎 Semi-translucent backdrop to perfectly expose the blurred page background */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[6px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[8px]" onClick={onClose} />
       
-      {/* 💎 High-fidelity Glassmorphism Modal Shell */}
-      <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#0d0d0d]/85 backdrop-blur-2xl border border-white/10 rounded-[32px] shadow-[0_0_60px_rgba(34,197,94,0.15)] animate-in fade-in zoom-in-95 duration-300 my-auto overflow-hidden">
+      <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-[#0b0c0e]/90 backdrop-blur-2xl border border-white/10 rounded-[28px] shadow-[0_0_80px_rgba(34,197,94,0.12)] animate-in fade-in zoom-in-95 duration-250 my-auto overflow-hidden">
         
-        {/* Header Gradient Progress Bar */}
+        {/* Top Progress Indicator */}
         <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
           <div 
-            className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-700 ease-in-out"
+            className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500 ease-out"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
 
         <div className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
           
-          {/* Highly Visible Header Layout */}
           <div className="flex justify-between items-start mb-6">
             <div>
               <span className="text-[9px] font-bold text-green-400 uppercase tracking-[0.2em] bg-green-500/10 px-3 py-1 rounded-full mb-2.5 inline-block border border-green-500/20">
-                Step {step} of {totalSteps}
+                Wizard Step {step} of {totalSteps}
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-                {step === 1 && <FolderGit2 className="w-5 h-5 text-green-500" />}
+                {step === 1 && <Cpu className="w-5 h-5 text-green-500" />}
                 {step === 2 && <Binary className="w-5 h-5 text-green-500" />}
-                {step === 3 && <Layers className="w-5 h-5 text-green-500" />}
-                {step === 1 && "Information Discovery"}
-                {step === 2 && "Binary Payload"}
-                {step === 3 && "Label Allocations"}
+                {step === 3 && <Sliders className="w-5 h-5 text-green-500" />}
+                {step === 4 && <Layers className="w-5 h-5 text-green-500" />}
+                
+                {step === 1 && "Engine Setup"}
+                {step === 2 && "Weights Artifact"}
+                {step === 3 && "Input Modality"}
+                {step === 4 && "Output Schema"}
               </h2>
               <p className="text-gray-400 text-xs sm:text-sm mt-1.5 max-w-md">
-                {step === 1 && "Assign unique model metadata and brief descriptors."}
-                {step === 2 && "Browse weights artifacts and assign runtime target."}
-                {step === 3 && "Determine classification mapping scopes and keywords."}
+                {step === 1 && "Define model parameters and target framework metadata."}
+                {step === 2 && "Provide weights binaries locally or select a remote model hub repo."}
+                {step === 3 && "Specify input specifications, shape layouts, and normalization presets."}
+                {step === 4 && "Configure inference task output targets, class lists, and tagging."}
               </p>
             </div>
             {!loading && (
@@ -392,29 +307,27 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in">
+            <div className="mb-6 bg-red-500/10 border border-red-500/25 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in">
               <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
               <p className="text-xs text-gray-300 font-medium leading-relaxed">{error}</p>
             </div>
           )}
 
           {success ? (
-            <div className="py-16 text-center animate-in fade-in slide-in-from-bottom-4">
+            <div className="py-12 text-center animate-in fade-in slide-in-from-bottom-4">
               <div className="relative w-16 h-16 mx-auto mb-4">
                 <div className="absolute inset-0 bg-green-500/25 rounded-full blur-2xl animate-pulse" />
                 <CheckCircle2 className="relative w-16 h-16 text-green-500" />
               </div>
-              <h3 className="text-xl font-extrabold text-white">Deployment Complete</h3>
+              <h3 className="text-xl font-extrabold text-white">Ingestion complete!</h3>
               <p className="text-gray-400 text-sm mt-1.5 max-w-xs mx-auto">
-                Your model has cleared synthetic testing protocols and is now live!
+                The model is compiled and registered successfully.
               </p>
               
               {verificationLogs && (
-                <div className="mt-6 mx-auto max-w-sm bg-black/40 border border-white/5 rounded-xl p-3 text-left overflow-hidden">
-                   <p className="text-[8px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-1">
-                     <Cpu className="w-2 h-2" /> Validation Gate Console
-                   </p>
-                   <pre className="text-[10px] text-green-400 font-mono leading-tight whitespace-pre-wrap">
+                <div className="mt-6 mx-auto max-w-sm bg-black/40 border border-white/5 rounded-xl p-3 text-left">
+                   <p className="text-[8px] font-bold text-gray-500 uppercase mb-2">Validation Output Console</p>
+                   <pre className="text-[10px] text-green-400 font-mono leading-tight whitespace-pre-wrap max-h-36 overflow-y-auto">
                      {verificationLogs}
                    </pre>
                 </div>
@@ -423,54 +336,66 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
           ) : (
             <div className="space-y-5">
               
-              {/* STEP 1: Expanded Fully Visible Fields */}
+              {/* STEP 1: Engine Details */}
               {step === 1 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Info className="w-4 h-4 text-gray-500" />
-                      Model Identifier (Slug)
-                    </label>
-                    <div className="relative">
-                      <input
-                        required
-                        autoFocus
-                        value={formData.model_id}
-                        onChange={e => {
-                          const val = e.target.value.toLowerCase().replace(/\s+/g, '-');
-                          setFormData({...formData, model_id: val});
-                          if (val.length > 3) checkIdAvailability(val);
-                        }}
-                        placeholder="e.g. coffee-rust-v1"
-                        className={`w-full bg-white/[0.03] border ${isIdAvailable === false ? 'border-red-500/50' : isIdAvailable === true ? 'border-green-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all`}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {checkingId ? <Loader2 className="w-4 h-4 text-gray-500 animate-spin" /> : 
-                         isIdAvailable === true ? <CheckCircle2 className="w-4 h-4 text-green-500" /> :
-                         isIdAvailable === false ? <AlertCircle className="w-4 h-4 text-red-500" /> : null}
-                      </div>
-                    </div>
-                    {isIdAvailable === false && (
-                      <p className="text-[10px] text-red-400 font-bold uppercase tracking-tight">This identifier is already reserved.</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Display Title Name</label>
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Model Title Name</label>
                     <input
                       required
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      placeholder="e.g. Coffee Rust Disease Engine"
+                      autoFocus
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="e.g. Tomato Early Blight Classifier"
                       className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
                     />
                   </div>
+
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Core Description</label>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Generated Slug</label>
+                    <input
+                      disabled
+                      value={modelId}
+                      className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-sm text-gray-500 cursor-not-allowed font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Framework</label>
+                    <select
+                      value={framework}
+                      onChange={e => setFramework(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all cursor-pointer"
+                    >
+                      <option value="pytorch" className="bg-[#0b0c0e]">PyTorch</option>
+                      <option value="tensorflow" className="bg-[#0b0c0e]">TensorFlow / Keras</option>
+                      <option value="sklearn" className="bg-[#0b0c0e]">Scikit-Learn</option>
+                      <option value="onnx" className="bg-[#0b0c0e]">ONNX Runtime</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Model Serialization Format</label>
+                    <select
+                      value={modelFormat}
+                      onChange={e => setModelFormat(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all cursor-pointer"
+                    >
+                      <option value="safetensors" className="bg-[#0b0c0e]">safetensors (PyTorch)</option>
+                      <option value="keras_h5" className="bg-[#0b0c0e]">Keras H5 (.h5)</option>
+                      <option value="onnx" className="bg-[#0b0c0e]">ONNX (.onnx)</option>
+                      <option value="pickle" className="bg-[#0b0c0e]">Pickle / Joblib (.pkl)</option>
+                      <option value="savedmodel" className="bg-[#0b0c0e]">TensorFlow SavedModel</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Description</label>
                     <textarea
                       required
-                      value={formData.description}
-                      onChange={e => setFormData({...formData, description: e.target.value})}
-                      placeholder="Describe target crop, training constraints, and model intent..."
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder="Describe target crop diseases, training datasets used..."
                       rows={2}
                       className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all resize-none"
                     />
@@ -478,232 +403,280 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                 </div>
               )}
 
-              {/* STEP 2: Elegant Browse Container */}
+              {/* STEP 2: Weights Artifact Payload */}
               {step === 2 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Upload className="w-4 h-4 text-gray-500" />
-                      Model Weights Artifact File
-                    </label>
-                    {/* Source Selection Toggle */}
-                    <div className="flex bg-white/5 p-1 rounded-xl mb-4 border border-white/5">
-                      <button
-                        type="button"
-                        onClick={() => setSource('local')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${source === 'local' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                      >
-                        <Upload className="w-3 h-3" />
-                        Local Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSource('hub')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${source === 'hub' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                      >
-                        <CloudDownload className="w-3 h-3" />
-                        Model Hub
-                      </button>
-                    </div>
-
-                    {source === 'local' ? (
-                      <>
-                        <input 
-                          type="file" 
-                          ref={fileInputRef} 
-                          onChange={handleFileSelect}
-                          className="hidden"
-                          accept=".h5,.pt,.pth,.pkl,.joblib"
-                        />
-                        
-                        {selectedFile ? (
-                          <div className="flex items-center gap-4 bg-green-500/10 border border-green-500/25 p-4 rounded-2xl animate-in zoom-in-95 duration-200">
-                            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 shrink-0">
-                              <FileText className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                              <p className="font-bold text-sm text-gray-200 truncate">{selectedFile.name}</p>
-                              <p className="text-[10px] text-green-400 uppercase font-mono mt-0.5">
-                                {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Pre-Load Buffer
-                              </p>
-                            </div>
-                            <button 
-                              type="button"
-                              onClick={() => { setSelectedFile(null); setFramework('pytorch'); }}
-                              className="p-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-all"
-                              title="Discard Artifact"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full border-2 border-dashed border-white/10 hover:border-green-500/30 hover:bg-green-500/[0.02] rounded-2xl py-7 flex flex-col items-center justify-center gap-3 transition-all duration-300 group"
-                          >
-                            <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-gray-400 group-hover:text-green-400 group-hover:scale-110 transition-all">
-                              <Upload className="w-5 h-5" />
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm font-bold text-gray-300">Browse Local Computer</p>
-                              <p className="text-[10px] text-gray-500 mt-1 tracking-wider uppercase font-mono">Supports .H5 • .PKL • .PTH</p>
-                            </div>
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex gap-2">
-                          <select
-                            value={hubSource}
-                            onChange={(e) => setHubSource(e.target.value as any)}
-                            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-gray-300 focus:outline-none focus:border-green-500/50"
-                          >
-                            <option value="huggingface" className="bg-[#0a0a0a]">Hugging Face</option>
-                            <option value="kaggle" className="bg-[#0a0a0a]">Kaggle</option>
-                            <option value="url" className="bg-[#0a0a0a]">Public URL</option>
-                          </select>
-                          <input
-                            value={hubModelId}
-                            onChange={(e) => setHubModelId(e.target.value)}
-                            placeholder={hubSource === 'url' ? "Enter direct .h5/.pkl URL" : "Enter Model ID (e.g. user/model)"}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-green-500/50"
-                          />
-                        </div>
-                        
-                        {remoteFilePath ? (
-                          <div className="flex items-center gap-4 bg-green-500/10 border border-green-500/25 p-4 rounded-2xl">
-                             <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 shrink-0">
-                              <Library className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                              <p className="font-bold text-sm text-gray-200 truncate">Remote Artifact Cached</p>
-                              <p className="text-[10px] text-green-400 uppercase font-mono mt-0.5">READY FOR DEPLOYMENT</p>
-                            </div>
-                            <button 
-                              onClick={() => setRemoteFilePath(null)}
-                              className="p-2 bg-white/5 hover:bg-red-500/20 rounded-xl transition-all"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleRemotePull}
-                            disabled={pulling}
-                            className="w-full bg-white/10 hover:bg-white/20 border border-white/5 rounded-xl py-3 flex items-center justify-center gap-2 text-xs font-bold text-white transition-all disabled:opacity-50"
-                          >
-                            {pulling ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Connecting to {hubSource === 'huggingface' ? 'HF Hub' : 'Kaggle'}...
-                              </>
-                            ) : (
-                              <>
-                                <Globe className="w-3 h-3" />
-                                Pull Remote Asset
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2 pt-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Target Framework</label>
-                    <select
-                      value={framework}
-                      onChange={(e) => setFramework(e.target.value)}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-colors cursor-pointer"
+                  <div className="flex bg-white/5 p-1 rounded-xl mb-4 border border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setSource('local')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${source === 'local' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                     >
-                      <option value="pytorch" className="bg-[#0a0a0a]">PyTorch (.PT / .PTH Native Loader)</option>
-                      <option value="keras" className="bg-[#0a0a0a]">Keras / TensorFlow (.H5 Artifact)</option>
-                      <option value="sklearn" className="bg-[#0a0a0a]">Scikit-Learn (.PKL / .JOBLIB Adapter)</option>
-                    </select>
+                      <Upload className="w-3 h-3" />
+                      Local Upload
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSource('hub')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${source === 'hub' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                      <CloudDownload className="w-3 h-3" />
+                      Model Hub
+                    </button>
                   </div>
+
+                  {source === 'local' ? (
+                    <div className="space-y-2">
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        accept=".h5,.pt,.pth,.pkl,.joblib,.onnx,.safetensors"
+                      />
+                      
+                      {selectedFile ? (
+                        <div className="flex items-center gap-4 bg-green-500/10 border border-green-500/25 p-4 rounded-2xl animate-in zoom-in-95 duration-200">
+                          <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 shrink-0">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                            <p className="font-bold text-sm text-gray-200 truncate">{selectedFile.name}</p>
+                            <p className="text-[10px] text-green-400 uppercase font-mono mt-0.5">
+                              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready
+                            </p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedFile(null)}
+                            className="p-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-all"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full border-2 border-dashed border-white/10 hover:border-green-500/30 hover:bg-green-500/[0.02] rounded-2xl py-8 flex flex-col items-center justify-center gap-3 transition-all duration-300 group"
+                        >
+                          <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-gray-400 group-hover:text-green-400 group-hover:scale-110 transition-all">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-gray-300">Choose weights file</p>
+                            <p className="text-[10px] text-gray-500 mt-1 tracking-wider uppercase font-mono">Supports H5, PKL, PTH, ONNX, SAFETENSORS</p>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Model Repository Hub</label>
+                        <select
+                          value={hubSource}
+                          onChange={(e) => setHubSource(e.target.value as any)}
+                          className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50"
+                        >
+                          <option value="huggingface" className="bg-[#0b0c0e]">Hugging Face</option>
+                          <option value="kaggle" className="bg-[#0b0c0e]">Kaggle</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Repository ID</label>
+                        <input
+                          value={hubRepoId}
+                          onChange={(e) => setHubRepoId(e.target.value)}
+                          placeholder="e.g. google/vit-base-patch16-224"
+                          className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Specific weights filename (Optional)</label>
+                        <input
+                          value={hubFilename}
+                          onChange={(e) => setHubFilename(e.target.value)}
+                          placeholder="e.g. pytorch_model.bin"
+                          className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* STEP 3: Analytical Labels */}
+              {/* STEP 3: Modality and Preprocessing Presets */}
               {step === 3 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-gray-500" />
-                      Target Prediction Classes
-                    </label>
-                    <div className="relative">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Input Modality</label>
+                    <select
+                      value={modality}
+                      onChange={e => setModality(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all cursor-pointer"
+                    >
+                      <option value="image" className="bg-[#0b0c0e]">Image Vision Model</option>
+                      <option value="audio" className="bg-[#0b0c0e]">Audio / Speech Acoustic Model</option>
+                      <option value="text" className="bg-[#0b0c0e]">NLP Text / Token Sequence Model</option>
+                      <option value="tabular" className="bg-[#0b0c0e]">Tabular Numeric Dataset Model</option>
+                    </select>
+                  </div>
+
+                  {modality === 'image' && (
+                    <div className="space-y-4 p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                      <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Image Preprocessing Preset</p>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase">Height (px)</label>
+                          <input
+                            type="number"
+                            value={imgH}
+                            onChange={e => setImgH(Number(e.target.value))}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase">Width (px)</label>
+                          <input
+                            type="number"
+                            value={imgW}
+                            onChange={e => setImgW(Number(e.target.value))}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase">Channels</label>
+                          <input
+                            type="number"
+                            value={imgC}
+                            onChange={e => setImgC(Number(e.target.value))}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Normalization standard</label>
+                        <select
+                          value={normalization}
+                          onChange={e => setNormalization(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                        >
+                          <option value="none" className="bg-[#0b0c0e]">None (Raw pixel range [0, 255])</option>
+                          <option value="rescale_only" className="bg-[#0b0c0e]">Rescale Only (Scale to [0, 1])</option>
+                          <option value="imagenet" className="bg-[#0b0c0e]">ImageNet presets (Mean & Std Shift)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {modality === 'audio' && (
+                    <div className="space-y-4 p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                      <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Acoustic Properties</p>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase">Sample Rate (Hz)</label>
+                          <input
+                            type="number"
+                            value={audioSampleRate}
+                            onChange={e => setAudioSampleRate(Number(e.target.value))}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase">Channels</label>
+                          <input
+                            type="number"
+                            value={audioChannels}
+                            onChange={e => setAudioChannels(Number(e.target.value))}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Audio Format</label>
+                        <input
+                          value={audioFormat}
+                          onChange={e => setAudioFormat(e.target.value)}
+                          placeholder="e.g. wav, mp3"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {modality === 'text' && (
+                    <div className="space-y-4 p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                      <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Text Properties</p>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Max Sequence Length</label>
+                        <input
+                          type="number"
+                          value={textMaxLength}
+                          onChange={e => setTextMaxLength(Number(e.target.value))}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {modality === 'tabular' && (
+                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                      <p className="text-xs text-gray-400">Tabular properties will parse input shapes matching numeric dataframe dimensions directly.</p>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* STEP 4: Output Class Assignments */}
+              {step === 4 && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-3 duration-200">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">Task Type</label>
+                    <select
+                      value={taskType}
+                      onChange={e => setTaskType(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all cursor-pointer"
+                    >
+                      <option value="classification" className="bg-[#0b0c0e]">classification (Image / Class probability)</option>
+                      <option value="regression" className="bg-[#0b0c0e]">regression (Continuous numeric mapping)</option>
+                      <option value="object_detection" className="bg-[#0b0c0e]">object_detection (Bounding Boxes)</option>
+                    </select>
+                  </div>
+
+                  {taskType !== 'regression' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-gray-500" />
+                        Target Class Labels (Separated by Commas)
+                      </label>
                       <input
                         required
                         autoFocus
-                        value={formData.class_names}
-                        onChange={e => setFormData({...formData, class_names: e.target.value})}
-                        placeholder="e.g. Healthy, Leaf Rust, Miner..."
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-32 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
+                        value={classNames}
+                        onChange={e => setClassNames(e.target.value)}
+                        placeholder="e.g. Healthy, Leaf Rust, Coffee Miner..."
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
                       />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        <input 
-                          type="file" 
-                          ref={configInputRef} 
-                          onChange={handleConfigSelect} 
-                          className="hidden" 
-                          accept=".json" 
-                        />
-                        <button
-                          type="button"
-                          onClick={() => configInputRef.current?.click()}
-                          title="Upload config.json"
-                          className="bg-white/5 hover:bg-white/10 text-gray-400 p-1.5 rounded-lg border border-white/5 transition-all"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleProbe}
-                          disabled={probing || (!selectedFile && !remoteFilePath)}
-                          className="bg-green-500/10 hover:bg-green-500/20 text-green-400 text-[9px] font-bold px-3 py-1.5 rounded-lg border border-green-500/20 transition-all disabled:opacity-0"
-                        >
-                          {probing ? "..." : "Auto"}
-                        </button>
-                      </div>
+                      <p className="text-[10px] text-gray-500">Provide labels strictly separated by commas.</p>
                     </div>
-                    <p className="text-[10px] text-gray-500">Provide labels strictly separated by commas.</p>
-                  </div>
-                  
-                  <div className="space-y-2 pt-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                      Model Config Payload (JSON Standard)
-                    </label>
-                    <textarea
-                      value={configJson}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setConfigJson(val);
-                        try {
-                          const parsed = JSON.parse(val);
-                          const classesList = parsed.class_names || parsed.output_classes || (parsed.id2label ? Object.values(parsed.id2label) : []);
-                          if (Array.isArray(classesList) && classesList.length > 0) {
-                            setFormData(prev => ({ ...prev, class_names: classesList.join(', ') }));
-                          }
-                        } catch (err) {}
-                      }}
-                      placeholder={`{\n  "class_names": ["Corn_Cercospora_Leaf_Spot", "Corn_Common_Rust", ...],\n  "framework": "pytorch"\n}`}
-                      rows={4}
-                      className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-green-500/50 transition-all font-mono resize-y"
-                    />
-                  </div>
+                  )}
 
-                  <div className="space-y-2 pt-1">
+                  <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
                       <Tag className="w-4 h-4 text-gray-500" />
-                      Discovery Tag Indexing
+                      Index Search Tags (Separated by Commas)
                     </label>
                     <input
-                      value={formData.tags}
-                      onChange={e => setFormData({...formData, tags: e.target.value})}
+                      value={tags}
+                      onChange={e => setTags(e.target.value)}
                       placeholder="e.g. Coffee, Fungal, Tropical"
                       className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-green-500/50 transition-all"
                     />
@@ -711,14 +684,13 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                 </div>
               )}
 
-              {/* Validation Banner Overlay */}
               {validationError && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2.5 rounded-xl text-xs font-bold mt-3 animate-in slide-in-from-top-2">
                   {validationError}
                 </div>
               )}
 
-              {/* High-Contrast Navigation Anchors */}
+              {/* Step Controls */}
               <div className="flex items-center justify-between gap-4 pt-4 border-t border-white/5 mt-6">
                 {step > 1 ? (
                   <button 
@@ -745,7 +717,7 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                   </button>
                 ) : (
                   <button
-                    disabled={loading || !selectedFile}
+                    disabled={loading || (source === 'local' && !selectedFile)}
                     onClick={handleSubmit}
                     type="button"
                     className="flex-1 sm:flex-none bg-green-500 hover:bg-green-400 disabled:opacity-30 text-black font-black px-7 py-3.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
@@ -753,11 +725,11 @@ export default function RegisterModelModal({ isOpen, onClose, onSuccess }: Regis
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Syncing Engine...
+                        Deploying...
                       </>
                     ) : (
                       <>
-                        Launch Engine
+                        Deploy Model
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

@@ -1,3 +1,4 @@
+import os
 from celery import Celery
 from app.core.settings import settings
 
@@ -15,5 +16,5 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     imports=["app.domains.models.tasks"],
-    task_always_eager=True # Set to True by default to make local verification and testing simple without Redis dependencies
+    task_always_eager=os.environ.get("CELERY_ALWAYS_EAGER", "False").lower() == "true"
 )
