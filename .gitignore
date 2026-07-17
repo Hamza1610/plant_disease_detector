@@ -6,3 +6,11 @@ __pycache__
 
 omnivax-kp.pem
 academic-technical-documentation.md
+
+# Large files and local state
+models/artifacts/
+agent/history/
+.egg-info/
+dist/
+build/
+*.egg-info/

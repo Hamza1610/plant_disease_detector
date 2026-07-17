@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 
 # Copy requirements and install remaining dependencies
 COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir --default-timeout=1000 -r backend/requirements.txt
 
 # Copy the entire project structure (needed for model resolution)
 COPY . .

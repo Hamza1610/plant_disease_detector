@@ -9,6 +9,10 @@ Requires-Dist: rich>=13.0.0
 Requires-Dist: httpx>=0.24.0
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: supabase>=1.0.0
+Requires-Dist: uvicorn>=0.20.0
+Requires-Dist: websockets>=11.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: google-genai>=0.1.1
 
 # Omnivax CLI Documentation
 

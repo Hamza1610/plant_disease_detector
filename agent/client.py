@@ -8,8 +8,13 @@ from rich.text import Text
 
 console = Console()
 
-async def chat_loop():
-    url = "ws://127.0.0.1:8088/ws"
+from typing import Optional
+
+async def chat_loop(server_url: str = "ws://127.0.0.1:8088/ws", session_id: Optional[str] = None):
+    url = server_url
+    if session_id:
+        url += f"?session_id={session_id}"
+        
     console.print(f"[bold green]Connecting to Omnivax Helper Agent Server at {url}...[/bold green]")
     
     try:
@@ -23,9 +28,44 @@ async def chat_loop():
                 border_style="magenta"
             ))
             
-            # Initial prompt/help from the agent
-            initial_msg = await websocket.recv()
-            console.print(f"\n[bold magenta]Agent:[/bold magenta] {initial_msg}")
+            # Initial communication and history loading loop
+            active_session_id = session_id
+            while True:
+                response = await websocket.recv()
+                
+                # Check for session ID metadata
+                if response.startswith("[Session ID]:"):
+                    active_session_id = response.replace("[Session ID]:", "").strip()
+                    console.print(f"[dim gray]Session ID: {active_session_id}[/dim gray]")
+                    continue
+                
+                # Check for history messages
+                if response.startswith("[History user]:"):
+                    msg = response.replace("[History user]:", "").strip()
+                    console.print(f"\n[bold yellow]You:[/bold yellow] {msg}")
+                    continue
+                elif response.startswith("[History agent]:"):
+                    msg = response.replace("[History agent]:", "").strip()
+                    if msg.startswith("[Agent Status]:"):
+                        console.print(f"[dim cyan]{msg}[/dim cyan]")
+                    else:
+                        console.print(f"\n[bold magenta]Agent:[/bold magenta] {msg}")
+                    continue
+                elif response.startswith("[History system]:"):
+                    msg = response.replace("[History system]:", "").strip()
+                    # Print tools return logs with dim styling
+                    console.print(f"[dim italic gray]{msg}[/dim italic gray]")
+                    continue
+                elif response == "[History End]":
+                    console.print("[dim gray]---- History Restore Complete ----[/dim gray]")
+                    continue
+                
+                # First non-history greeting message
+                if response.startswith("[Agent Status]:"):
+                    console.print(f"[dim cyan]{response}[/dim cyan]")
+                else:
+                    console.print(f"\n[bold magenta]Agent:[/bold magenta] {response}")
+                break
             
             while True:
                 user_input = Prompt.ask("\n[bold yellow]You[/bold yellow]")
@@ -53,8 +93,8 @@ async def chat_loop():
                         
     except ConnectionRefusedError:
         console.print("[bold red]Connection Refused:[/bold red] Could not connect to the agent server.")
-        console.print("[yellow]Please ensure the server is running on port 8088 by executing:[/yellow]")
-        console.print("  python agent/server.py")
+        console.print("[yellow]Please ensure the server is running by executing:[/yellow]")
+        console.print("  omnivax agent start")
     except Exception as e:
         console.print(f"[bold red]Disconnected due to error:[/bold red] {str(e)}")
 

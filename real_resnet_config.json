@@ -1,0 +1,28 @@
+{
+  "name": "Tiny ResNet Classifier",
+  "framework": "pytorch",
+  "model_format": "safetensors",
+  "model_source": {
+    "hub": "huggingface",
+    "repo_id": "hf-internal-testing/tiny-random-resnet",
+    "filename": "model.safetensors"
+  },
+  "input_schema": {
+    "modality": "image",
+    "parameters": {
+      "image": {
+        "dimensions": [224, 224, 3],
+        "normalization": "imagenet"
+      }
+    }
+  },
+  "output_schema": {
+    "task_type": "classification",
+    "parameters": {
+      "classification": {
+        "class_names": ["class_0", "class_1"]
+      }
+    }
+  },
+  "tags": ["resnet", "tiny", "classification"]
+}

@@ -4,8 +4,9 @@ import Sidebar from "@/components/Sidebar";
 import { useUser } from "@/hooks/useUser";
 import OnboardingWizard from "@/components/OnboardingWizard";
 import { useState, useEffect } from "react";
-import { Loader2, Menu } from "lucide-react";
+import { Loader2, Menu, Bot } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import AgentAssistPanel from "@/components/AgentAssistPanel";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,7 @@ export default function DashboardLayout({
   const { user, loading, refreshUser } = useUser();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -99,6 +101,18 @@ export default function DashboardLayout({
         <div className="flex-1 overflow-y-auto">
           {children}
         </div>
+
+        {/* Floating Agent Assist Toggle Button */}
+        <button
+          onClick={() => setIsAgentOpen(prev => !prev)}
+          className="fixed bottom-6 right-6 p-4 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] hover:scale-105 active:scale-[0.97] transition-all z-40 flex items-center justify-center"
+          title="Open Agent Assist"
+        >
+          <Bot className="w-6 h-6" />
+        </button>
+
+        {/* Agent Assist Chat Panel */}
+        <AgentAssistPanel isOpen={isAgentOpen} onClose={() => setIsAgentOpen(false)} />
       </main>
     </div>
   );

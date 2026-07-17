@@ -75,6 +75,7 @@ function MobileMenu({ isOpen, onClose, user, loading, logout, pathname }: {
           <MobileNavLink href="/" label="Home" active={pathname === '/'} onClick={onClose} />
           <MobileNavLink href="/#features" label="Features" active={pathname === '/#features'} onClick={onClose} />
           <MobileNavLink href="/pricing" label="Pricing" active={pathname === '/pricing'} onClick={onClose} />
+          <MobileNavLink href="/docs" label="Docs" active={pathname === '/docs'} onClick={onClose} />
         </nav>
 
         {/* Auth Footer */}
@@ -143,6 +144,7 @@ export default function Navbar() {
               <Link href="/" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Home</Link>
               <Link href="/#features" className="text-gray-300 hover:text-white px-2 py-1 rounded-md text-sm font-medium transition-colors">Features</Link>
               <Link href="/pricing" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/pricing' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Pricing</Link>
+              <Link href="/docs" className={`px-2 py-1 rounded-md text-sm font-medium transition-colors ${pathname === '/docs' ? 'text-green-400' : 'text-gray-300 hover:text-white'}`}>Docs</Link>
 
               <div className="flex items-center gap-3 ml-4 border-l border-white/10 pl-4">
                 {!loading && (

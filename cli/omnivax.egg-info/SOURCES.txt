@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 omnivax/__init__.py
+omnivax/agent.py
 omnivax/auth.py
 omnivax/config.py
 omnivax/credentials.py
